@@ -251,7 +251,7 @@ JSON만 출력:
     const res = await fetch(PROXY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4096, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 4096, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
     const text = (data.content || []).map(b => b.text || '').join('');
@@ -370,7 +370,7 @@ JSON만 출력: {"keywords":["","","","","","","","","",""]}`;
     const res = await fetch(PROXY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 512, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 512, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
     const text = (data.content || []).map(b => b.text || '').join('');
