@@ -219,29 +219,34 @@ async function generate() {
 입력 키워드 (무작위): ${tags.join(', ')}
 
 === 1단계: 키워드 분류 ===
-- brand: 브랜드명 또는 브랜드 대신 쓸 수식어
-- attr: 속성 (가공방식·상태·특징)
-- category: 핵심 카테고리명 (1~2개)
-- size: 사이즈·용량·수량
-- season: 시즌성·용도·상황
-- hashtag: 상품명에 못 들어가는 나머지
+- brand: 브랜드명 (없으면 빈 배열)
+- attr: 상품의 직접적 속성·특징 (예: 저염식, 건강한, 간단한, 가정식, 대용량, 가성비, 꽈리고추, 계란)
+- category: 상품 자체 카테고리명 (예: 장조림, 밑반찬, 도시락)
+- size: 사이즈·용량·수량 (예: 500g, 대용량, 1kg)
+- season: 시즌·용도·상황 (예: 도시락, 아침반찬, 정기배송, 한달식단, 어린이반찬, 아기반찬)
+- hashtag: 검색 유입용이지만 상품명 구성에 불필요한 것 (예: 반찬추천, 반찬주문, 인터넷반찬가게, 장조림레시피)
+중요: 장조림/밑반찬/도시락반찬은 반드시 category에. 아기반찬/어린이반찬/도시락 같은 용도는 season에. 반찬추천/반찬주문 같은 검색용은 hashtag에.
 
 === 2단계: 네이버 스마트스토어 상품명 4개 ===
-구조: [brand?] + [attr] + [attr] + [category] + [size?] + [season?]
+구조: [brand?]+[attr1]+[attr2]+[category]+[size?]+[season?]
+예시1: "저염 가정식 계란 꽈리고추 장조림 도시락 밑반찬"
+예시2: "건강한 간단한 계란 장조림 어린이반찬"
+예시3: "간단한 저염식 꽈리고추 계란 장조림 아침반찬"
+예시4: "가성비 대용량 가정식 계란 꽈리고추 장조림 정기배송"
 - 네이버 자동표기 제외: 원산지·중량·수량·포장상태는 필드에서 자동 붙음 → 상품명에 넣지 말 것
 - 단, 원산지가 차별화 포인트면 속성으로 포함 가능 (예: 제주)
 - 금지어: 청정, 최고, 최상, 프리미엄, 특가, 할인, 배송조건
 - 중복 의미 단어 하나만 (가시없는/뼈없는 중 택1)
-- 4개 각각 키워드 조합·순서·유의어 다르게
+- category는 필수, 4개 각각 attr조합과 season 반드시 다르게
 
 === 3단계: 쿠팡 상품명 4개 ===
-구조: [brand] + [모델명/시리즈] + [주요 상품 유형] + [핵심 특징/속성]
-- brand: 브랜드명 또는 대표 원산지·생산지 키워드
-- 모델명/시리즈: 상품 고유명·시리즈명 (없으면 생략)
-- 주요 상품 유형: 카테고리+핵심속성 붙여쓰기 (예: 순살은갈치, 왕새우구이)
-- 핵심 특징/속성: 용량·수량·포장형태·조리방식 등 구매결정 요소
+구조: [brand]+[category+attr붙여쓰기]+[size/특징]
+예시1: "가정식 계란 꽈리고추장조림 저염 어린이 도시락 반찬 500g"
+예시2: "가정식반찬 저염 계란장조림 꽈리고추 밑반찬 정기배송용 400g"
+예시3: "건강한 가정식 꽈리고추 계란 장조림 아이반찬 대용량 600g"
+예시4: "가정식 계란장조림 꽈리고추 저염식 도시락 밑반찬 500g"
 - 원산지·중량·수량 직접 포함 가능
-- 4개 각각 조합·순서 다르게
+- 4개 각각 조합·순서 반드시 다르게
 
 === 4단계: 해시태그 ===
 - hashtag 분류 키워드 + 상품명에서 빠진 키워드
@@ -354,35 +359,22 @@ function switchTab(tab) {
 
 // ── 2차 Claude 호출: 상품명 → 광고 키워드 10개 추출 ──
 async function extractCPCKeywords(naverNames) {
-  const prompt = `다음 네이버 스마트스토어 상품명 4개에서 네이버 쇼핑 광고에 사용할 검색 키워드 10개를 조합해줘.
-
-상품명:
-${naverNames.map((n,i) => `${i+1}. ${n}`).join('\n')}
-
-규칙:
-- 상품명 단어들을 조합해서 실제 소비자가 검색할 법한 키워드 만들기
-- 단어 붙이기/띄어쓰기 조합 모두 활용 (예: 제주은갈치, 순살 은갈치, 은갈치구이)
-- 카테고리 단독, 속성+카테고리, 원산지+카테고리 등 다양하게
-- 너무 길거나 특수한 조합 제외
-- 절대 띄어쓰기 금지. 모든 키워드 반드시 붙여쓰기 (구운계란O 구운계란30구O / 구운 계란X 구운 계란 30구X)
-- 정확히 10개
-
-JSON만 출력: {"keywords":["","","","","","","","","",""]}`;
-
+  const inputKeywords = [...tags];
+  if (inputKeywords.length >= 10) {
+    renderCPCKeywords(inputKeywords);
+    return;
+  }
+  const needed = 10 - inputKeywords.length;
+  const prompt = "사용자 입력 키워드: " + inputKeywords.join(', ') + "\n네이버 상품명: " + naverNames.join(' / ') + "\n입력 키워드 제외하고 소비자 검색 키워드 " + needed + "개 추가 생성. 모두 붙여쓰기. JSON만: {\"keywords\":[]}";
   try {
-    const res = await fetch(PROXY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 512, messages: [{ role: 'user', content: prompt }] })
-    });
+    const res = await fetch(PROXY, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:512,messages:[{role:'user',content:prompt}]})});
     const data = await res.json();
-    const text = (data.content || []).map(b => b.text || '').join('');
-    const raw = (text.match(/\{[\s\S]*\}/) || [])[0] || '';
+    const text = (data.content||[]).map(b=>b.text||'').join('');
+    const raw = (text.match(/{[\s\S]*}/)||[])[0]||'';
     const parsed = JSON.parse(raw);
-    renderCPCKeywords(parsed.keywords || []);
+    renderCPCKeywords([...inputKeywords,...(parsed.keywords||[])]);
   } catch(e) {
-    document.getElementById('cpcKwGrid').innerHTML = '<p style="font-size:12px;color:#dc2626;padding:8px 0">키워드 추출 실패. 직접 입력해주세요.</p>';
-    renderCPCKeywords(['']);
+    renderCPCKeywords(inputKeywords.length ? inputKeywords : ['']);
     document.getElementById('cpcBtn').disabled = false;
   }
 }
@@ -545,6 +537,16 @@ function downloadExcel() {
   function secH(r, txt, color, endCol) {
     sc(r,0,txt, st(color,{bold:true,color:'ffffff',sz:11,center:true}));
     mg(r,0,r,endCol);
+  }
+
+  // ══════════════════════
+  // 입력 키워드 섹션
+  // ══════════════════════
+  if(tags && tags.length) {
+    secH(ri, "입력 키워드", "374151", 8); ri++;
+    sc(ri,0,"키워드", st("e5e7eb",{bold:true,center:true})); mg(ri,0,ri,8); ri++;
+    sc(ri,0, tags.join(", "), st("f9fafb",{wrap:true})); mg(ri,0,ri,8); ri++;
+    ri++;
   }
 
   // ══════════════════════
