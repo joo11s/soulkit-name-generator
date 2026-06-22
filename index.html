@@ -33,7 +33,7 @@ h1{font-size:18px;font-weight:700;margin-bottom:3px}
 .pix-lbl{font-size:9px;color:#bbb;font-family:monospace;letter-spacing:1px}
 .pix-log-light{background:#fff;border:1.5px solid #eee;border-radius:8px;padding:6px 10px;min-width:150px;height:48px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;gap:2px}
 .pll{font-size:9px;font-family:monospace;animation:logIn .3s ease}
-.pll.w{color:#6366f1}.pll.ok{color:#22c55e}.pll.cpc{color:#f59e0b}
+.pll.w{color:#f5e6c8}.pll.ok{color:#22c55e}.pll.cpc{color:#f59e0b}
 @keyframes logIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
 .pix-cur{animation:cur .7s infinite}
 @keyframes cur{0%,100%{opacity:1}50%{opacity:0}}
@@ -84,7 +84,7 @@ h1{font-size:18px;font-weight:700;margin-bottom:3px}
 .cpc-section{margin-top:16px}
 .cpc-card{background:#fff;border:1.5px solid #e8e8e8;border-radius:14px;overflow:hidden}
 .cpc-head{padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px}
-.cpc-dot{width:8px;height:8px;border-radius:50%;background:#6366f1}
+.cpc-dot{width:8px;height:8px;border-radius:50%;background:#f5e6c8}
 .cpc-title{font-size:13px;font-weight:600;flex:1}
 .cpc-sub{font-size:11px;color:#bbb}
 .cpc-kw-area{padding:12px 16px;border-bottom:1px solid #f0f0f0}
@@ -99,7 +99,7 @@ h1{font-size:18px;font-weight:700;margin-bottom:3px}
 .cpc-kw-add{margin-top:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;border-radius:8px;border:1.5px dashed #ddd;background:transparent;color:#aaa;width:100%}
 .cpc-kw-add:hover{border-color:#aaa;color:#666}
 .cpc-btn-row{padding:12px 16px;border-bottom:1px solid #f0f0f0}
-.btn-cpc{width:100%;padding:13px;font-size:14px;font-weight:700;cursor:pointer;border-radius:10px;border:none;background:#6366f1;color:#fff;transition:opacity .15s}
+.btn-cpc{width:100%;padding:13px;font-size:14px;font-weight:700;cursor:pointer;border-radius:10px;border:none;background:#f5e6c8;color:#1a1a1a;transition:opacity .15s}
 .btn-cpc:hover{opacity:.85}
 .btn-cpc:disabled{opacity:.3;cursor:not-allowed}
 .cpc-loading{text-align:center;padding:20px 0}
@@ -710,8 +710,8 @@ function _drawPix(canvasId, frame, theme) {
   ctx.fillStyle = isLight ? '#e8e8e8' : '#1a1a2e';
   ctx.fillRect(12,12,32,22);
   // 화면
-  const s1 = theme==='cpc' ? (frame%2===0?'#f59e0b':'#fbbf24') : (frame%2===0?'#6366f1':'#818cf8');
-  const s2 = theme==='cpc' ? '#fde68a' : '#c7d2fe';
+  const s1 = theme==='cpc' ? (frame%2===0?'#f59e0b':'#fbbf24') : (frame%2===0?'#f5e6c8':'#f0d9a8');
+  const s2 = theme==='cpc' ? '#fde68a' : '#faf3e3';
   ctx.fillStyle = s1; ctx.fillRect(15,15,18,2);
   ctx.fillStyle = s2; ctx.fillRect(15,19,12,2);
   ctx.fillStyle = frame%3===0?'#22c55e':'#86efac'; ctx.fillRect(15,23,14,2);
@@ -724,11 +724,11 @@ function _drawPix(canvasId, frame, theme) {
   ctx.fillRect(16,39,24,3);
 
   // 몸통
-  const bodyC = theme==='cpc' ? '#f59e0b' : '#6366f1';
+  const bodyC = theme==='cpc' ? '#f59e0b' : '#f5e6c8';
   ctx.fillStyle = bodyC;
   ctx.fillRect(20,26,10,9);
   // 머리
-  const headC = theme==='cpc' ? '#fbbf24' : '#818cf8';
+  const headC = theme==='cpc' ? '#fbbf24' : '#f0d9a8';
   ctx.fillStyle = headC;
   ctx.fillRect(22,16,10,10);
   // 머리카락
