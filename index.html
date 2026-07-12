@@ -61,6 +61,30 @@ canvas#trendChart{width:100%;display:block}
 .trend-error{font-size:12px;color:#f87171;padding:10px 12px;background:rgba(239,68,68,.1);border-radius:8px}
 .trend-info{font-size:10px;color:#4b4b6a;margin-top:6px;text-align:right}
 
+/* ── pagination ── */
+.kw-pagination{display:flex;gap:4px;flex-wrap:wrap;padding:8px 12px;align-items:center;justify-content:center;border-top:1px solid #1a2035}
+.kw-pg-btn{padding:4px 9px;font-size:11px;font-weight:600;cursor:pointer;border-radius:6px;border:1.5px solid #222840;background:#0e1120;color:#9494ad;transition:all .15s}
+.kw-pg-btn:hover{border-color:#f5e6c8;color:#f5e6c8}
+.kw-pg-btn.active{background:#222840;color:#f5e6c8;border-color:#f5e6c8}
+.kw-pg-info{font-size:10px;color:#4b4b6a;text-align:center;padding:2px 12px 6px}
+/* ── multi keyword compare section ── */
+.kw-compare-section{border-top:1px solid #222840;padding:10px 12px}
+.kw-compare-title{font-size:11px;font-weight:700;color:#9494ad;margin-bottom:8px}
+.kw-chip-box{border:1.5px solid #222840;border-radius:10px;background:#0e1120;padding:5px 8px;min-height:38px;display:flex;flex-wrap:wrap;gap:4px;align-content:flex-start;cursor:text;transition:border .2s;margin-bottom:8px}
+.kw-chip-box:focus-within{border-color:#f5e6c8}
+.kw-chip{display:inline-flex;align-items:center;gap:3px;background:#20203a;border-radius:16px;padding:3px 8px;font-size:11px;color:#e8e8f0;white-space:nowrap}
+.kw-chip button{background:none;border:none;cursor:pointer;color:#6b6b8a;font-size:14px;line-height:1;padding:0}
+.kw-chip button:hover{color:#e8e8f0}
+.kw-chip-input{border:none;outline:none;font-size:11px;color:#e8e8f0;background:transparent;min-width:60px;flex:1;padding:2px}
+.kw-chip-input::placeholder{color:#4b4b6a}
+.kw-compare-btn{width:100%;padding:7px;font-size:12px;font-weight:700;cursor:pointer;border-radius:8px;border:none;background:#f5e6c8;color:#1a1a1a;transition:opacity .15s}
+.kw-compare-btn:hover{opacity:.82}
+.kw-compare-btn:disabled{opacity:.35;cursor:not-allowed}
+/* ── trend multi legend ── */
+.trend-legend{display:flex;flex-wrap:wrap;gap:8px;padding:6px 0 4px;justify-content:center}
+.trend-legend-item{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#9494ad}
+.trend-legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
 /* responsive: collapse side panels on small screens */
 @media(max-width:900px){
   .three-col-layout{flex-direction:column;padding:12px}
@@ -216,6 +240,14 @@ table.cpc-tbl td:first-child{color:#e8e8f0;font-weight:600;font-size:13px}
           <div class="trend-empty" id="trendEmptyMsg">키워드를 선택하면 추이가 표시됩니다</div>
         </div>
         <div class="trend-info" id="trendInfo"></div>
+        <div class="kw-compare-section">
+          <div class="kw-compare-title">키워드 최대 5개 비교</div>
+          <div class="kw-chip-box" id="trendCompareBox" onclick="document.getElementById('trendCompareInput').focus()">
+            <input class="kw-chip-input" id="trendCompareInput" placeholder="Enter로 추가 (최대 5개)">
+          </div>
+          <button class="kw-compare-btn" id="trendCompareBtn" onclick="fetchMultiTrend()">조회</button>
+          <div id="trendCompareArea"></div>
+        </div>
       </div>
     </div>
   </aside>
@@ -254,6 +286,13 @@ table.cpc-tbl td:first-child{color:#e8e8f0;font-weight:600;font-size:13px}
           <button class="kwtool-btn" id="kwToolBtn" onclick="searchKeywords()">조회</button>
         </div>
         <div class="kwtool-hint">행 클릭 시 상품명 생성기에 키워드 추가</div>
+        <div class="kw-compare-section">
+          <div class="kw-compare-title">키워드 최대 5개 비교</div>
+          <div class="kw-chip-box" id="kwCompareBox" onclick="document.getElementById('kwCompareInput').focus()">
+            <input class="kw-chip-input" id="kwCompareInput" placeholder="Enter로 추가 (최대 5개)">
+          </div>
+          <button class="kw-compare-btn" id="kwCompareBtn" onclick="searchMultiKeywords()">조회</button>
+        </div>
         <div id="kwToolResult">
           <div class="kwtool-empty">검색할 키워드를 입력하세요</div>
         </div>
@@ -956,12 +995,27 @@ async function searchKeywords() {
   if (btn) btn.disabled = false;
 }
 
+let _kwAllResults = [];
+let _kwCurPage = 0;
+var KW_PAGE_SIZE = 50;
+
 function renderKwToolResult(keywords) {
   if (!keywords || !keywords.length) {
     document.getElementById('kwToolResult').innerHTML =
       '<div class="kwtool-empty">결과가 없습니다</div>';
     return;
   }
+  _kwAllResults = keywords;
+  renderKwPage(0);
+}
+
+function renderKwPage(page) {
+  _kwCurPage = page;
+  var total = _kwAllResults.length;
+  var totalPages = Math.ceil(total / KW_PAGE_SIZE);
+  var start = page * KW_PAGE_SIZE;
+  var slice = _kwAllResults.slice(start, start + KW_PAGE_SIZE);
+
   function compBadge(comp) {
     if (!comp) return '<span class="comp-badge comp-mid">-</span>';
     const v = String(comp);
@@ -974,23 +1028,44 @@ function renderKwToolResult(keywords) {
     if (!v || v < 0) return '<10';
     return v.toLocaleString();
   }
+
   let html = '<div class="kwtbl-wrap"><table class="kwtbl"><thead><tr>' +
-    '<th>연관키워드</th><th>PC</th><th>모바일</th><th>경쟁도</th>' +
+    '<th>연관키워드</th><th>PC검색</th><th>모바일검색</th><th>PC클릭</th><th>모바일클릭</th><th>경쟁도</th>' +
     '</tr></thead><tbody>';
-  keywords.forEach(function(kw) {
+  slice.forEach(function(kw) {
     const relKw = kw.relKeyword || kw.keyword || '';
     const pc = fmtNum(kw.pcQcCnt);
     const mob = fmtNum(kw.mobileQcCnt);
+    const pcClk = fmtNum(kw.pcClkCnt);
+    const mobClk = fmtNum(kw.mobileClkCnt);
     const comp = compBadge(kw.compIdx);
     const relKwEsc = relKw.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     html += '<tr onclick="onKwToolRowClick(\'' + relKwEsc + '\')">' +
       '<td class="kw-relkw" title="' + relKwEsc + '">' + relKw + '</td>' +
       '<td class="kw-vol">' + pc + '</td>' +
       '<td class="kw-vol">' + mob + '</td>' +
+      '<td class="kw-vol">' + pcClk + '</td>' +
+      '<td class="kw-vol">' + mobClk + '</td>' +
       '<td>' + comp + '</td>' +
       '</tr>';
   });
   html += '</tbody></table></div>';
+
+  if (totalPages > 1) {
+    html += '<div class="kw-pagination">';
+    if (page > 0) html += '<button class="kw-pg-btn" onclick="renderKwPage(' + (page-1) + ')">이전</button>';
+    var maxBtns = 7;
+    var pStart = Math.max(0, page - Math.floor(maxBtns/2));
+    var pEnd = Math.min(totalPages - 1, pStart + maxBtns - 1);
+    if (pEnd - pStart < maxBtns - 1) pStart = Math.max(0, pEnd - maxBtns + 1);
+    for (var p = pStart; p <= pEnd; p++) {
+      html += '<button class="kw-pg-btn' + (p === page ? ' active' : '') + '" onclick="renderKwPage(' + p + ')">' + (p+1) + '</button>';
+    }
+    if (page < totalPages - 1) html += '<button class="kw-pg-btn" onclick="renderKwPage(' + (page+1) + ')">다음</button>';
+    html += '</div>';
+    html += '<div class="kw-pg-info">' + (start+1) + '–' + Math.min(start+KW_PAGE_SIZE, total) + ' / 총 ' + total + '개</div>';
+  }
+
   document.getElementById('kwToolResult').innerHTML = html;
 }
 
@@ -1039,6 +1114,7 @@ async function fetchTrend(kw) {
     // 방어적 파싱
     let trend = [];
     if (Array.isArray(data)) trend = data;
+    else if (Array.isArray(data?.series) && data.series.length) trend = data.series[0].data || [];
     else if (Array.isArray(data?.trend)) trend = data.trend;
     else if (Array.isArray(data?.data)) trend = data.data;
     else if (data?.results && Array.isArray(data.results)) trend = data.results;
@@ -1166,6 +1242,247 @@ function renderTrendChart(trend, kw) {
   // info
   const info = document.getElementById('trendInfo');
   if (info) info.textContent = trend.length + '개 데이터 포인트';
+}
+</script>
+
+<!-- ── 추가 기능: 키워드 비교 + 멀티 트렌드 ── -->
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 오른쪽 패널 — 키워드 비교 칩 입력
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var _kwCompTags = [];
+function kwCompAddTag(v) {
+  v = v.trim();
+  if (!v || _kwCompTags.indexOf(v) > -1 || _kwCompTags.length >= 5) return;
+  _kwCompTags.push(v);
+  var chip = document.createElement('span');
+  chip.className = 'kw-chip'; chip.dataset.v = v;
+  chip.innerHTML = '<span>' + v + '</span><button onclick="kwCompRemoveTag(\'' + v.replace(/'/g,"\\'") + '\')">×</button>';
+  var inp = document.getElementById('kwCompareInput');
+  inp.parentNode.insertBefore(chip, inp);
+}
+function kwCompRemoveTag(v) {
+  var i = _kwCompTags.indexOf(v);
+  if (i > -1) _kwCompTags.splice(i, 1);
+  var box = document.getElementById('kwCompareBox');
+  var chip = box && box.querySelector('[data-v="' + CSS.escape(v) + '"]');
+  if (chip) chip.remove();
+}
+(function() {
+  var inp = document.getElementById('kwCompareInput');
+  if (!inp) return;
+  inp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); if (inp.value.trim()) { kwCompAddTag(inp.value); inp.value = ''; } }
+    if (e.key === 'Backspace' && !inp.value && _kwCompTags.length) kwCompRemoveTag(_kwCompTags[_kwCompTags.length - 1]);
+  });
+  inp.addEventListener('blur', function() { if (inp.value.trim()) { kwCompAddTag(inp.value); inp.value = ''; } });
+})();
+
+// 오른쪽 패널 — 다중 키워드 조회
+async function searchMultiKeywords() {
+  if (!_kwCompTags.length) return;
+  var btn = document.getElementById('kwCompareBtn');
+  if (btn) btn.disabled = true;
+  document.getElementById('kwToolResult').innerHTML = '<div class="kwtool-loading">비교 조회 중...</div>';
+  try {
+    var res = await fetch(KW_SEARCH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seeds: _kwCompTags.slice() })
+    });
+    var data = await res.json();
+    var keywords = [];
+    if (Array.isArray(data)) keywords = data;
+    else if (Array.isArray(data && data.keywords)) keywords = data.keywords;
+    else if (Array.isArray(data && data.result)) keywords = data.result;
+    keywords.sort(function(a, b) {
+      var va = (Number(a.pcQcCnt)||0) + (Number(a.mobileQcCnt)||0);
+      var vb = (Number(b.pcQcCnt)||0) + (Number(b.mobileQcCnt)||0);
+      return vb - va;
+    });
+    renderKwToolResult(keywords);
+  } catch(e) {
+    document.getElementById('kwToolResult').innerHTML =
+      '<div class="kwtool-error">조회 실패: ' + e.message + '</div>';
+  }
+  if (btn) btn.disabled = false;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 왼쪽 패널 — 트렌드 비교 칩 입력
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var _trendCompTags = [];
+function trendCompAddTag(v) {
+  v = v.trim();
+  if (!v || _trendCompTags.indexOf(v) > -1 || _trendCompTags.length >= 5) return;
+  _trendCompTags.push(v);
+  var chip = document.createElement('span');
+  chip.className = 'kw-chip'; chip.dataset.v = v;
+  chip.innerHTML = '<span>' + v + '</span><button onclick="trendCompRemoveTag(\'' + v.replace(/'/g,"\\'") + '\')">×</button>';
+  var inp = document.getElementById('trendCompareInput');
+  inp.parentNode.insertBefore(chip, inp);
+}
+function trendCompRemoveTag(v) {
+  var i = _trendCompTags.indexOf(v);
+  if (i > -1) _trendCompTags.splice(i, 1);
+  var box = document.getElementById('trendCompareBox');
+  var chip = box && box.querySelector('[data-v="' + CSS.escape(v) + '"]');
+  if (chip) chip.remove();
+}
+(function() {
+  var inp = document.getElementById('trendCompareInput');
+  if (!inp) return;
+  inp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); if (inp.value.trim()) { trendCompAddTag(inp.value); inp.value = ''; } }
+    if (e.key === 'Backspace' && !inp.value && _trendCompTags.length) trendCompRemoveTag(_trendCompTags[_trendCompTags.length - 1]);
+  });
+  inp.addEventListener('blur', function() { if (inp.value.trim()) { trendCompAddTag(inp.value); inp.value = ''; } });
+})();
+
+// 왼쪽 패널 — 다중 키워드 트렌드 조회 + 멀티라인 차트
+var TREND_PALETTE = ['#f5e6c8', '#7f9bd9', '#e88b8b', '#7fd99a', '#c99ee8'];
+
+async function fetchMultiTrend() {
+  if (!_trendCompTags.length) return;
+  var btn = document.getElementById('trendCompareBtn');
+  if (btn) btn.disabled = true;
+  var area = document.getElementById('trendCompareArea');
+  if (area) area.innerHTML = '<div class="trend-loading">비교 조회 중...</div>';
+
+  var unit = _trendUnit === 'year' ? 'month' : _trendUnit;
+  try {
+    var res = await fetch(TREND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keywords: _trendCompTags.slice(), timeUnit: unit, monthsBack: _trendMonths })
+    });
+    var data = await res.json();
+    var series = [];
+    if (Array.isArray(data && data.series)) {
+      series = data.series;
+    } else if (Array.isArray(data)) {
+      series = [{ groupName: _trendCompTags[0] || '키워드', data: data }];
+    }
+    if (_trendUnit === 'year') {
+      series = series.map(function(s) {
+        return { groupName: s.groupName, data: groupTrendByYear(s.data || []) };
+      });
+    }
+    renderMultiTrendChart(series);
+  } catch(e) {
+    if (area) area.innerHTML = '<div class="trend-error">조회 실패: ' + e.message + '</div>';
+  }
+  if (btn) btn.disabled = false;
+}
+
+function renderMultiTrendChart(series) {
+  var area = document.getElementById('trendCompareArea');
+  if (!series || !series.length) {
+    area.innerHTML = '<div class="trend-empty">데이터가 없습니다</div>';
+    return;
+  }
+
+  // 전체 min/max 계산
+  var allRatios = [];
+  series.forEach(function(s) {
+    (s.data || []).forEach(function(d) { allRatios.push(Number(d.ratio) || 0); });
+  });
+  var maxR = Math.max.apply(null, allRatios) || 1;
+  var minR = Math.min.apply(null, allRatios);
+  var range = maxR - minR || 1;
+
+  // 기준 periods (데이터 가장 많은 시리즈)
+  var refSeries = series.reduce(function(a, b) { return (b.data||[]).length > (a.data||[]).length ? b : a; });
+  var periods = (refSeries.data || []).map(function(d) { return d.period; });
+  var n = periods.length;
+
+  var W = 268, H = 180;
+
+  // 범례 HTML
+  var legendHtml = '<div class="trend-legend">';
+  series.forEach(function(s, i) {
+    var color = TREND_PALETTE[i % TREND_PALETTE.length];
+    legendHtml += '<span class="trend-legend-item"><span class="trend-legend-dot" style="background:' + color + '"></span>' + (s.groupName || '') + '</span>';
+  });
+  legendHtml += '</div>';
+
+  area.innerHTML = legendHtml + '<div class="trend-canvas-wrap"><canvas id="trendMultiChart" width="' + W + '" height="' + H + '"></canvas></div>';
+
+  var canvas = document.getElementById('trendMultiChart');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+
+  var pad = { top: 14, right: 12, bottom: 32, left: 36 };
+  var cW = W - pad.left - pad.right;
+  var cH = H - pad.top - pad.bottom;
+
+  function xPos(i, serLen) {
+    var len = serLen || n;
+    return pad.left + (len > 1 ? (i / (len - 1)) * cW : cW / 2);
+  }
+  function yPos(v) { return pad.top + cH - ((v - minR) / range) * cH; }
+
+  // 배경
+  ctx.fillStyle = '#0e1120';
+  ctx.fillRect(0, 0, W, H);
+
+  // 그리드
+  ctx.strokeStyle = '#1a2035';
+  ctx.lineWidth = 1;
+  for (var g = 0; g <= 4; g++) {
+    var gy = pad.top + (g / 4) * cH;
+    ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(pad.left + cW, gy); ctx.stroke();
+  }
+
+  // 각 시리즈 라인
+  series.forEach(function(s, si) {
+    var color = TREND_PALETTE[si % TREND_PALETTE.length];
+    var data = s.data || [];
+    var ratios = data.map(function(d) { return Number(d.ratio) || 0; });
+    var sn = ratios.length;
+    if (!sn) return;
+
+    ctx.beginPath();
+    ctx.moveTo(xPos(0, sn), yPos(ratios[0]));
+    for (var i = 1; i < sn; i++) ctx.lineTo(xPos(i, sn), yPos(ratios[i]));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.8;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    if (sn <= 24) {
+      ratios.forEach(function(v, i) {
+        ctx.beginPath();
+        ctx.arc(xPos(i, sn), yPos(v), 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      });
+    }
+  });
+
+  // y축 레이블
+  ctx.fillStyle = '#6b6b8a';
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'right';
+  for (var g2 = 0; g2 <= 4; g2++) {
+    var v2 = minR + (range * (4 - g2) / 4);
+    var gy2 = pad.top + (g2 / 4) * cH;
+    ctx.fillText(v2.toFixed(0), pad.left - 4, gy2 + 3);
+  }
+
+  // x축 레이블
+  ctx.textAlign = 'center';
+  var step = Math.max(1, Math.ceil(n / 4));
+  for (var xi = 0; xi < n; xi += step) {
+    var label = String(periods[xi] || '');
+    var short = label.length > 7 ? label.substring(2) : label;
+    ctx.fillText(short, xPos(xi, n), H - 8);
+  }
+  if (n > 1 && (n - 1) % step !== 0) {
+    var lastLabel = String(periods[n - 1] || '');
+    var lastShort = lastLabel.length > 7 ? lastLabel.substring(2) : lastLabel;
+    ctx.fillText(lastShort, xPos(n - 1, n), H - 8);
+  }
 }
 </script>
 </body>
