@@ -74,6 +74,10 @@ canvas#trendChart{width:100%;display:block}
 .trend-loading{font-size:12px;color:#9494ad;text-align:center;padding:20px}
 .trend-error{font-size:12px;color:#f87171;padding:10px 12px;background:rgba(239,68,68,.1);border-radius:8px}
 .trend-info{font-size:10px;color:#4b4b6a;margin-top:6px;text-align:right}
+/* trend category dropdown */
+.trend-cat-select{width:100%;background:#0e1120;border:1.5px solid #222840;border-radius:8px;padding:6px 10px;font-size:12px;color:#e8e8f0;outline:none;margin-bottom:8px;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b6b8a'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;transition:border .2s}
+.trend-cat-select:focus{border-color:#f5e6c8}
+.trend-cat-label{font-size:10px;color:#6b6b8a;margin-bottom:3px;padding-left:1px}
 
 /* ── pagination ── */
 .kw-pagination{display:flex;gap:4px;flex-wrap:wrap;padding:8px 12px;align-items:center;justify-content:center;border-top:1px solid #1a2035}
@@ -244,6 +248,24 @@ table.cpc-tbl td:first-child{color:#e8e8f0;font-weight:600;font-size:13px}
         <button class="btn-panel-reset" onclick="resetTrendPanel()">초기화</button>
       </div>
       <div class="trend-body">
+        <div class="trend-cat-label">카테고리</div>
+        <select class="trend-cat-select" id="trendCatSelect" onchange="setTrendCategory(this.value)">
+          <option value="50000000">패션의류</option>
+          <option value="50000001">패션잡화</option>
+          <option value="50000002">화장품/미용</option>
+          <option value="50000003">디지털/가전</option>
+          <option value="50000004">가구/인테리어</option>
+          <option value="50000005">출산/육아</option>
+          <option value="50000006">식품</option>
+          <option value="50000007">스포츠/레저</option>
+          <option value="50000008" selected>생활/건강</option>
+          <option value="50000009">자동차용품</option>
+          <option value="50000010">도서/음반/DVD</option>
+          <option value="50000011">완구/취미</option>
+          <option value="50000012">문구/오피스</option>
+          <option value="50000013">반려동물용품</option>
+          <option value="50000014">여행/문화상품권</option>
+        </select>
         <input class="trend-kw-input" id="trendKwInput" placeholder="키워드 입력 후 Enter" onkeydown="if(event.key==='Enter'&&this.value.trim())fetchTrend(this.value.trim())">
         <div class="trend-toggle">
           <button class="trend-tog-btn active" data-unit="date" data-months="3" onclick="setTrendUnit(this)">일간</button>
@@ -1114,6 +1136,13 @@ let _trendKw = '';
 let _trendUnit = 'date';
 let _trendMonths = 3;
 let _trendData = null;
+let _trendCategory = '50000008'; // 기본값: 생활/건강
+
+function setTrendCategory(val) {
+  _trendCategory = val;
+  if (_trendKw) fetchTrend(_trendKw);
+  else if (_trendCompTags && _trendCompTags.length) fetchMultiTrend();
+}
 
 function setTrendUnit(btn) {
   document.querySelectorAll('.trend-tog-btn').forEach(function(b){ b.classList.remove('active'); });
@@ -1153,7 +1182,7 @@ async function fetchTrend(kw) {
     const res = await fetch(TREND_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyword: kw, timeUnit: unit, monthsBack: months })
+      body: JSON.stringify({ keyword: kw, timeUnit: unit, monthsBack: months, categoryParam: _trendCategory })
     });
     const data = await res.json();
     // 방어적 파싱
@@ -1428,7 +1457,7 @@ async function fetchMultiTrend() {
     var res = await fetch(TREND_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keywords: _trendCompTags.slice(), timeUnit: unit, monthsBack: _trendMonths })
+      body: JSON.stringify({ keywords: _trendCompTags.slice(), timeUnit: unit, monthsBack: _trendMonths, categoryParam: _trendCategory })
     });
     var data = await res.json();
     var series = [];
