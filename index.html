@@ -11,7 +11,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans
 /* ── 3-column layout ── */
 .three-col-layout{display:flex;gap:16px;padding:16px;min-height:100vh;align-items:flex-start}
 .side-panel{width:300px;flex-shrink:0;position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto}
-.center-col{flex:1;min-width:0}
+#kwToolPanel{width:460px}
+.center-col{flex:1;min-width:0;max-width:640px}
 
 /* side panel card */
 .sp-card{background:#13192a;border:1.5px solid #222840;border-radius:16px;overflow:hidden}
@@ -33,14 +34,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans
 .kwtool-empty{font-size:12px;color:#4b4b6a;text-align:center;padding:28px 16px}
 .kwtool-loading{font-size:12px;color:#9494ad;text-align:center;padding:20px}
 .kwtool-error{font-size:12px;color:#f87171;padding:10px 12px;background:rgba(239,68,68,.1);border-radius:8px;margin-top:4px}
-.kwtbl-wrap{overflow-x:auto;padding-bottom:4px}
-table.kwtbl{width:100%;border-collapse:collapse;font-size:12px}
-table.kwtbl th{padding:7px 8px;text-align:left;font-size:11px;font-weight:600;color:#9494ad;background:#0e1120;border-bottom:1px solid #222840;white-space:nowrap}
-table.kwtbl td{padding:7px 8px;border-bottom:1px solid #1a2035;vertical-align:middle;white-space:nowrap}
+.kwtbl-wrap{overflow-x:hidden;padding-bottom:4px}
+table.kwtbl{width:100%;border-collapse:collapse;font-size:11px}
+table.kwtbl th{padding:5px 5px;text-align:left;font-size:10px;font-weight:600;color:#9494ad;background:#0e1120;border-bottom:1px solid #222840;white-space:nowrap}
+table.kwtbl td{padding:5px 5px;border-bottom:1px solid #1a2035;vertical-align:middle;white-space:nowrap}
 table.kwtbl tr:last-child td{border-bottom:none}
 table.kwtbl tbody tr{cursor:pointer;transition:background .15s}
 table.kwtbl tbody tr:hover td{background:#1e2540}
-.kw-relkw{color:#e8e8f0;font-weight:600;font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.kw-relkw{color:#e8e8f0;font-weight:600;font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+.kw-vol{font-size:11px}
+table.kwtbl tr.kw-seed-row td{background:rgba(245,230,200,0.08);font-weight:700}
+table.kwtbl tr.kw-seed-row .kw-relkw{font-weight:700}
 .kw-vol{color:#c8d0f0;font-size:11px}
 .comp-badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:700}
 .comp-low{background:rgba(34,197,94,.18);color:#86efac}
@@ -1040,7 +1044,8 @@ function renderKwPage(page) {
     const mobClk = fmtNum(kw.mobileClkCnt);
     const comp = compBadge(kw.compIdx);
     const relKwEsc = relKw.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    html += '<tr onclick="onKwToolRowClick(\'' + relKwEsc + '\')">' +
+    const seedClass = kw.isSeed ? ' kw-seed-row' : '';
+    html += '<tr class="' + seedClass.trim() + '" onclick="onKwToolRowClick(\'' + relKwEsc + '\')">' +
       '<td class="kw-relkw" title="' + relKwEsc + '">' + relKw + '</td>' +
       '<td class="kw-vol">' + pc + '</td>' +
       '<td class="kw-vol">' + mob + '</td>' +
