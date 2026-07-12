@@ -55,12 +55,22 @@ table.kwtbl tr.kw-seed-row .kw-relkw{font-weight:700}
 .trend-body{padding:12px}
 .trend-kw-display{font-size:12px;color:#f5e6c8;font-weight:600;margin-bottom:10px;min-height:18px;word-break:break-all}
 .trend-kw-display.empty{color:#4b4b6a;font-weight:400}
+.trend-kw-input{width:100%;background:#0e1120;border:1.5px solid #222840;border-radius:8px;padding:6px 10px;font-size:12px;color:#f5e6c8;font-weight:600;outline:none;margin-bottom:10px;transition:border .2s}
+.trend-kw-input:focus{border-color:#f5e6c8}
+.trend-kw-input::placeholder{color:#4b4b6a;font-weight:400}
 .trend-toggle{display:flex;gap:4px;margin-bottom:10px;background:#0e1120;border-radius:8px;padding:3px}
 .trend-tog-btn{flex:1;padding:5px 0;font-size:11px;font-weight:600;cursor:pointer;border:none;background:transparent;color:#6b6b8a;border-radius:6px;transition:all .2s}
 .trend-tog-btn.active{background:#222840;color:#f5e6c8}
 .trend-empty{font-size:12px;color:#4b4b6a;text-align:center;padding:40px 16px}
 .trend-canvas-wrap{position:relative;width:100%;background:#0e1120;border-radius:10px;overflow:hidden}
 canvas#trendChart{width:100%;display:block}
+/* panel reset buttons */
+.btn-panel-reset{padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;border-radius:7px;border:1.5px solid #2a2a4a;background:#13192a;color:#9494ad;transition:all .15s;white-space:nowrap}
+.btn-panel-reset:hover{background:#1a2035;border-color:#6b6b8a;color:#e8e8f0}
+/* trend tooltip */
+.trend-tooltip{position:fixed;background:#1a2035;border:1px solid #333860;border-radius:8px;padding:7px 10px;font-size:11px;color:#e8e8f0;pointer-events:none;z-index:9999;min-width:120px;box-shadow:0 4px 16px rgba(0,0,0,.5);display:none}
+.trend-tooltip-period{font-size:10px;color:#9494ad;margin-bottom:3px}
+.trend-tooltip-val{font-weight:700;color:#f5e6c8}
 .trend-loading{font-size:12px;color:#9494ad;text-align:center;padding:20px}
 .trend-error{font-size:12px;color:#f87171;padding:10px 12px;background:rgba(239,68,68,.1);border-radius:8px}
 .trend-info{font-size:10px;color:#4b4b6a;margin-top:6px;text-align:right}
@@ -231,9 +241,10 @@ table.cpc-tbl td:first-child{color:#e8e8f0;font-weight:600;font-size:13px}
         <span class="sp-dot" style="background:#7c8ff0"></span>
         <span class="sp-title">쇼핑 트렌드</span>
         <span class="sp-sub">네이버 쇼핑</span>
+        <button class="btn-panel-reset" onclick="resetTrendPanel()">초기화</button>
       </div>
       <div class="trend-body">
-        <div class="trend-kw-display empty" id="trendKwDisplay">키워드를 선택하면 추이가 표시됩니다</div>
+        <input class="trend-kw-input" id="trendKwInput" placeholder="키워드 입력 후 Enter" onkeydown="if(event.key==='Enter'&&this.value.trim())fetchTrend(this.value.trim())">
         <div class="trend-toggle">
           <button class="trend-tog-btn active" data-unit="date" data-months="3" onclick="setTrendUnit(this)">일간</button>
           <button class="trend-tog-btn" data-unit="week" data-months="6" onclick="setTrendUnit(this)">주간</button>
@@ -283,6 +294,7 @@ table.cpc-tbl td:first-child{color:#e8e8f0;font-weight:600;font-size:13px}
         <span class="sp-dot" style="background:#f5e6c8"></span>
         <span class="sp-title">키워드 도구</span>
         <span class="sp-sub">연관 키워드 검색량</span>
+        <button class="btn-panel-reset" onclick="resetKwTool()">초기화</button>
       </div>
       <div class="kwtool-body">
         <div class="kwtool-row">
@@ -305,6 +317,10 @@ table.cpc-tbl td:first-child{color:#e8e8f0;font-weight:600;font-size:13px}
   </aside>
 
 </div><!-- /three-col-layout -->
+<div class="trend-tooltip" id="trendTooltip">
+  <div class="trend-tooltip-period" id="trendTooltipPeriod"></div>
+  <div class="trend-tooltip-val" id="trendTooltipVal"></div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script>
 const PROXY = 'https://n8n.wonflowai.com/webhook/product-name-proxy';
@@ -966,10 +982,23 @@ SoulKitKeywordBridge.onSelect(function(kw) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const KW_SEARCH_URL = 'https://n8n.wonflowai.com/webhook/soulkit-keyword-search';
 
+// ① Race condition guard
+let kwRequestSeq = 0;
+
+function resetKwTool() {
+  const input = document.getElementById('kwToolInput');
+  if (input) input.value = '';
+  // clear compare chips
+  _kwCompTags.slice().forEach(kwCompRemoveTag);
+  _kwAllResults = [];
+  document.getElementById('kwToolResult').innerHTML = '<div class="kwtool-empty">검색할 키워드를 입력하세요</div>';
+}
+
 async function searchKeywords() {
   const input = document.getElementById('kwToolInput');
   const seed = (input && input.value.trim()) || '';
   if (!seed) return;
+  const mySeq = ++kwRequestSeq;
   const btn = document.getElementById('kwToolBtn');
   if (btn) btn.disabled = true;
   document.getElementById('kwToolResult').innerHTML = '<div class="kwtool-loading">조회 중...</div>';
@@ -980,6 +1009,7 @@ async function searchKeywords() {
       body: JSON.stringify({ seed: seed })
     });
     const data = await res.json();
+    if (mySeq !== kwRequestSeq) return; // stale response guard
     // 방어적 파싱: 배열이거나 { keywords: [...] }
     let keywords = [];
     if (Array.isArray(data)) keywords = data;
@@ -993,6 +1023,7 @@ async function searchKeywords() {
     });
     renderKwToolResult(keywords);
   } catch(e) {
+    if (mySeq !== kwRequestSeq) return;
     document.getElementById('kwToolResult').innerHTML =
       '<div class="kwtool-error">조회 실패: ' + e.message + '</div>';
   }
@@ -1098,10 +1129,25 @@ function setTrendUnit(btn) {
   if (_trendKw) fetchTrend(_trendKw);
 }
 
+function resetTrendPanel() {
+  _trendKw = '';
+  var inp = document.getElementById('trendKwInput');
+  if (inp) inp.value = '';
+  // clear compare chips
+  _trendCompTags.slice().forEach(trendCompRemoveTag);
+  var area = document.getElementById('trendChartArea');
+  if (area) area.innerHTML = '<div class="trend-empty" id="trendEmptyMsg">키워드를 선택하면 추이가 표시됩니다</div>';
+  var compareArea = document.getElementById('trendCompareArea');
+  if (compareArea) compareArea.innerHTML = '';
+  document.getElementById('trendInfo').textContent = '';
+  _trendData = null;
+}
+
 async function fetchTrend(kw) {
   _trendKw = kw;
-  const display = document.getElementById('trendKwDisplay');
-  if (display) { display.textContent = kw; display.classList.remove('empty'); }
+  // ③ sync the editable input
+  var inp = document.getElementById('trendKwInput');
+  if (inp && inp.value !== kw) inp.value = kw;
   const area = document.getElementById('trendChartArea');
   if (area) area.innerHTML = '<div class="trend-loading">조회 중...</div>';
   document.getElementById('trendInfo').textContent = '';
@@ -1247,6 +1293,37 @@ function renderTrendChart(trend, kw) {
   // info
   const info = document.getElementById('trendInfo');
   if (info) info.textContent = trend.length + '개 데이터 포인트';
+
+  // ④ Tooltip on hover
+  const tooltip = document.getElementById('trendTooltip');
+  const tooltipPeriod = document.getElementById('trendTooltipPeriod');
+  const tooltipVal = document.getElementById('trendTooltipVal');
+  canvas.addEventListener('mousemove', function(e) {
+    if (!tooltip) return;
+    const rect = canvas.getBoundingClientRect();
+    // scale mouse X to canvas coordinate space
+    const scaleX = W / rect.width;
+    const mx = (e.clientX - rect.left) * scaleX;
+    // find nearest data point index
+    let closestIdx = 0, closestDist = Infinity;
+    for (let i = 0; i < n; i++) {
+      const dist = Math.abs(xPos(i) - mx);
+      if (dist < closestDist) { closestDist = dist; closestIdx = i; }
+    }
+    const pt = trend[closestIdx];
+    if (!pt) return;
+    tooltipPeriod.textContent = pt.period || '';
+    tooltipVal.textContent = '비율: ' + (Number(pt.ratio) || 0).toFixed(1);
+    tooltip.style.display = 'block';
+    // position tooltip near cursor but keep within viewport
+    const tx = e.clientX + 14;
+    const ty = e.clientY - 36;
+    tooltip.style.left = tx + 'px';
+    tooltip.style.top = ty + 'px';
+  });
+  canvas.addEventListener('mouseleave', function() {
+    if (tooltip) tooltip.style.display = 'none';
+  });
 }
 </script>
 
@@ -1286,6 +1363,7 @@ function kwCompRemoveTag(v) {
 // 오른쪽 패널 — 다중 키워드 조회
 async function searchMultiKeywords() {
   if (!_kwCompTags.length) return;
+  var mySeq = ++kwRequestSeq;
   var btn = document.getElementById('kwCompareBtn');
   if (btn) btn.disabled = true;
   document.getElementById('kwToolResult').innerHTML = '<div class="kwtool-loading">비교 조회 중...</div>';
@@ -1296,6 +1374,7 @@ async function searchMultiKeywords() {
       body: JSON.stringify({ seeds: _kwCompTags.slice() })
     });
     var data = await res.json();
+    if (mySeq !== kwRequestSeq) return;
     var keywords = [];
     if (Array.isArray(data)) keywords = data;
     else if (Array.isArray(data && data.keywords)) keywords = data.keywords;
@@ -1307,6 +1386,7 @@ async function searchMultiKeywords() {
     });
     renderKwToolResult(keywords);
   } catch(e) {
+    if (mySeq !== kwRequestSeq) return;
     document.getElementById('kwToolResult').innerHTML =
       '<div class="kwtool-error">조회 실패: ' + e.message + '</div>';
   }
