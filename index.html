@@ -1015,12 +1015,6 @@ async function searchKeywords() {
     if (Array.isArray(data)) keywords = data;
     else if (Array.isArray(data?.keywords)) keywords = data.keywords;
     else if (Array.isArray(data?.result)) keywords = data.result;
-    // 검색량 내림차순 정렬
-    keywords.sort(function(a, b) {
-      const va = (Number(a.pcQcCnt)||0) + (Number(a.mobileQcCnt)||0);
-      const vb = (Number(b.pcQcCnt)||0) + (Number(b.mobileQcCnt)||0);
-      return vb - va;
-    });
     renderKwToolResult(keywords);
   } catch(e) {
     if (mySeq !== kwRequestSeq) return;
@@ -1379,11 +1373,6 @@ async function searchMultiKeywords() {
     if (Array.isArray(data)) keywords = data;
     else if (Array.isArray(data && data.keywords)) keywords = data.keywords;
     else if (Array.isArray(data && data.result)) keywords = data.result;
-    keywords.sort(function(a, b) {
-      var va = (Number(a.pcQcCnt)||0) + (Number(a.mobileQcCnt)||0);
-      var vb = (Number(b.pcQcCnt)||0) + (Number(b.mobileQcCnt)||0);
-      return vb - va;
-    });
     renderKwToolResult(keywords);
   } catch(e) {
     if (mySeq !== kwRequestSeq) return;
