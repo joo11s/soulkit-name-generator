@@ -7,6 +7,66 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;background:#0a0a16;color:#e8e8f0;min-height:100vh}
+
+/* ── 3-column layout ── */
+.three-col-layout{display:flex;gap:16px;padding:16px;min-height:100vh;align-items:flex-start}
+.side-panel{width:300px;flex-shrink:0;position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto}
+.center-col{flex:1;min-width:0}
+
+/* side panel card */
+.sp-card{background:#13192a;border:1.5px solid #222840;border-radius:16px;overflow:hidden}
+.sp-head{padding:12px 16px;border-bottom:1px solid #222840;display:flex;align-items:center;gap:8px}
+.sp-dot{width:8px;height:8px;border-radius:50%;background:#f5e6c8;flex-shrink:0}
+.sp-title{font-size:13px;font-weight:700;color:#e8e8f0;flex:1}
+.sp-sub{font-size:11px;color:#6b6b8a}
+
+/* keyword tool panel (right) */
+.kwtool-body{padding:12px}
+.kwtool-row{display:flex;gap:6px;margin-bottom:10px}
+.kwtool-input{flex:1;background:#0e1120;border:1.5px solid #222840;border-radius:10px;padding:8px 12px;font-size:13px;color:#e8e8f0;outline:none;transition:border .2s}
+.kwtool-input:focus{border-color:#f5e6c8}
+.kwtool-input::placeholder{color:#4b4b6a}
+.kwtool-btn{padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;border-radius:10px;border:none;background:#f5e6c8;color:#1a1a1a;white-space:nowrap;transition:opacity .15s}
+.kwtool-btn:hover{opacity:.82}
+.kwtool-btn:disabled{opacity:.35;cursor:not-allowed}
+.kwtool-hint{font-size:11px;color:#6b6b8a;padding:0 0 8px}
+.kwtool-empty{font-size:12px;color:#4b4b6a;text-align:center;padding:28px 16px}
+.kwtool-loading{font-size:12px;color:#9494ad;text-align:center;padding:20px}
+.kwtool-error{font-size:12px;color:#f87171;padding:10px 12px;background:rgba(239,68,68,.1);border-radius:8px;margin-top:4px}
+.kwtbl-wrap{overflow-x:auto;padding-bottom:4px}
+table.kwtbl{width:100%;border-collapse:collapse;font-size:12px}
+table.kwtbl th{padding:7px 8px;text-align:left;font-size:11px;font-weight:600;color:#9494ad;background:#0e1120;border-bottom:1px solid #222840;white-space:nowrap}
+table.kwtbl td{padding:7px 8px;border-bottom:1px solid #1a2035;vertical-align:middle;white-space:nowrap}
+table.kwtbl tr:last-child td{border-bottom:none}
+table.kwtbl tbody tr{cursor:pointer;transition:background .15s}
+table.kwtbl tbody tr:hover td{background:#1e2540}
+.kw-relkw{color:#e8e8f0;font-weight:600;font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.kw-vol{color:#c8d0f0;font-size:11px}
+.comp-badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:700}
+.comp-low{background:rgba(34,197,94,.18);color:#86efac}
+.comp-mid{background:rgba(245,230,200,.15);color:#f5e6c8}
+.comp-high{background:rgba(239,68,68,.18);color:#f87171}
+
+/* trend panel (left) */
+.trend-body{padding:12px}
+.trend-kw-display{font-size:12px;color:#f5e6c8;font-weight:600;margin-bottom:10px;min-height:18px;word-break:break-all}
+.trend-kw-display.empty{color:#4b4b6a;font-weight:400}
+.trend-toggle{display:flex;gap:4px;margin-bottom:10px;background:#0e1120;border-radius:8px;padding:3px}
+.trend-tog-btn{flex:1;padding:5px 0;font-size:11px;font-weight:600;cursor:pointer;border:none;background:transparent;color:#6b6b8a;border-radius:6px;transition:all .2s}
+.trend-tog-btn.active{background:#222840;color:#f5e6c8}
+.trend-empty{font-size:12px;color:#4b4b6a;text-align:center;padding:40px 16px}
+.trend-canvas-wrap{position:relative;width:100%;background:#0e1120;border-radius:10px;overflow:hidden}
+canvas#trendChart{width:100%;display:block}
+.trend-loading{font-size:12px;color:#9494ad;text-align:center;padding:20px}
+.trend-error{font-size:12px;color:#f87171;padding:10px 12px;background:rgba(239,68,68,.1);border-radius:8px}
+.trend-info{font-size:10px;color:#4b4b6a;margin-top:6px;text-align:right}
+
+/* responsive: collapse side panels on small screens */
+@media(max-width:900px){
+  .three-col-layout{flex-direction:column;padding:12px}
+  .side-panel{width:100%;position:static;max-height:none}
+}
+
 .container{max-width:640px;margin:0 auto;padding:20px 16px 80px}
 h1{font-size:18px;font-weight:700;margin-bottom:3px}
 .sub{font-size:13px;color:#9494ad;margin-bottom:20px}
@@ -134,6 +194,34 @@ table.cpc-tbl td:first-child{color:#e8e8f0;font-weight:600;font-size:13px}
 </style>
 </head>
 <body>
+<div class="three-col-layout">
+
+  <!-- ── LEFT PANEL: 트렌드 차트 ── -->
+  <aside class="side-panel" id="trendPanel">
+    <div class="sp-card">
+      <div class="sp-head">
+        <span class="sp-dot" style="background:#7c8ff0"></span>
+        <span class="sp-title">쇼핑 트렌드</span>
+        <span class="sp-sub">네이버 쇼핑</span>
+      </div>
+      <div class="trend-body">
+        <div class="trend-kw-display empty" id="trendKwDisplay">키워드를 선택하면 추이가 표시됩니다</div>
+        <div class="trend-toggle">
+          <button class="trend-tog-btn active" data-unit="date" data-months="3" onclick="setTrendUnit(this)">일간</button>
+          <button class="trend-tog-btn" data-unit="week" data-months="6" onclick="setTrendUnit(this)">주간</button>
+          <button class="trend-tog-btn" data-unit="month" data-months="24" onclick="setTrendUnit(this)">월간</button>
+          <button class="trend-tog-btn" data-unit="year" data-months="60" onclick="setTrendUnit(this)">연간</button>
+        </div>
+        <div id="trendChartArea">
+          <div class="trend-empty" id="trendEmptyMsg">키워드를 선택하면 추이가 표시됩니다</div>
+        </div>
+        <div class="trend-info" id="trendInfo"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── CENTER: 기존 상품명 생성기 (한 줄도 수정 안 함) ── -->
+  <main class="center-col">
 <div class="container">
   <h1>상품명 생성기</h1>
   <p class="sub">키워드 무작위 입력 → 네이버·쿠팡 상품명 + 해시태그 자동 생성</p>
@@ -150,6 +238,30 @@ table.cpc-tbl td:first-child{color:#e8e8f0;font-weight:600;font-size:13px}
   </div>
   <div id="output"></div>
 </div>
+  </main><!-- /center-col -->
+
+  <!-- ── RIGHT PANEL: 키워드 도구 ── -->
+  <aside class="side-panel" id="kwToolPanel">
+    <div class="sp-card">
+      <div class="sp-head">
+        <span class="sp-dot" style="background:#f5e6c8"></span>
+        <span class="sp-title">키워드 도구</span>
+        <span class="sp-sub">연관 키워드 검색량</span>
+      </div>
+      <div class="kwtool-body">
+        <div class="kwtool-row">
+          <input class="kwtool-input" id="kwToolInput" placeholder="키워드 입력 후 Enter" onkeydown="if(event.key==='Enter')searchKeywords()">
+          <button class="kwtool-btn" id="kwToolBtn" onclick="searchKeywords()">조회</button>
+        </div>
+        <div class="kwtool-hint">행 클릭 시 상품명 생성기에 키워드 추가</div>
+        <div id="kwToolResult">
+          <div class="kwtool-empty">검색할 키워드를 입력하세요</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+</div><!-- /three-col-layout -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script>
 const PROXY = 'https://n8n.wonflowai.com/webhook/product-name-proxy';
@@ -786,6 +898,275 @@ function stopPixCpc() {
   _addLog('pix-l-cpc','ok','> 조회 완료! ✓');
 }
 
+</script>
+
+<!-- ── SoulKit Bridge + 패널 로직 (기존 코드 미수정) ── -->
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 1. SoulKitKeywordBridge
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+window.SoulKitKeywordBridge = (function() {
+  const _cbs = [];
+  return {
+    onSelect: function(cb) { _cbs.push(cb); },
+    _emit: function(kw) { _cbs.forEach(function(cb){ try{ cb(kw); }catch(e){} }); }
+  };
+})();
+
+// 브리지 구독: 키워드 → 기존 상품명 생성기 입력창에 추가
+SoulKitKeywordBridge.onSelect(function(kw) {
+  if (typeof addTag === 'function') addTag(kw);
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 2. 키워드 도구 (오른쪽 패널)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const KW_SEARCH_URL = 'https://n8n.wonflowai.com/webhook/soulkit-keyword-search';
+
+async function searchKeywords() {
+  const input = document.getElementById('kwToolInput');
+  const seed = (input && input.value.trim()) || '';
+  if (!seed) return;
+  const btn = document.getElementById('kwToolBtn');
+  if (btn) btn.disabled = true;
+  document.getElementById('kwToolResult').innerHTML = '<div class="kwtool-loading">조회 중...</div>';
+  try {
+    const res = await fetch(KW_SEARCH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seed: seed })
+    });
+    const data = await res.json();
+    // 방어적 파싱: 배열이거나 { keywords: [...] }
+    let keywords = [];
+    if (Array.isArray(data)) keywords = data;
+    else if (Array.isArray(data?.keywords)) keywords = data.keywords;
+    else if (Array.isArray(data?.result)) keywords = data.result;
+    // 검색량 내림차순 정렬
+    keywords.sort(function(a, b) {
+      const va = (Number(a.pcQcCnt)||0) + (Number(a.mobileQcCnt)||0);
+      const vb = (Number(b.pcQcCnt)||0) + (Number(b.mobileQcCnt)||0);
+      return vb - va;
+    });
+    renderKwToolResult(keywords);
+  } catch(e) {
+    document.getElementById('kwToolResult').innerHTML =
+      '<div class="kwtool-error">조회 실패: ' + e.message + '</div>';
+  }
+  if (btn) btn.disabled = false;
+}
+
+function renderKwToolResult(keywords) {
+  if (!keywords || !keywords.length) {
+    document.getElementById('kwToolResult').innerHTML =
+      '<div class="kwtool-empty">결과가 없습니다</div>';
+    return;
+  }
+  function compBadge(comp) {
+    if (!comp) return '<span class="comp-badge comp-mid">-</span>';
+    const v = String(comp);
+    if (v === '낮음' || v === 'low') return '<span class="comp-badge comp-low">낮음</span>';
+    if (v === '높음' || v === 'high') return '<span class="comp-badge comp-high">높음</span>';
+    return '<span class="comp-badge comp-mid">중간</span>';
+  }
+  function fmtNum(n) {
+    const v = Number(n);
+    if (!v || v < 0) return '<10';
+    return v.toLocaleString();
+  }
+  let html = '<div class="kwtbl-wrap"><table class="kwtbl"><thead><tr>' +
+    '<th>연관키워드</th><th>PC</th><th>모바일</th><th>경쟁도</th>' +
+    '</tr></thead><tbody>';
+  keywords.forEach(function(kw) {
+    const relKw = kw.relKeyword || kw.keyword || '';
+    const pc = fmtNum(kw.pcQcCnt);
+    const mob = fmtNum(kw.mobileQcCnt);
+    const comp = compBadge(kw.compIdx);
+    const relKwEsc = relKw.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    html += '<tr onclick="onKwToolRowClick(\'' + relKwEsc + '\')">' +
+      '<td class="kw-relkw" title="' + relKwEsc + '">' + relKw + '</td>' +
+      '<td class="kw-vol">' + pc + '</td>' +
+      '<td class="kw-vol">' + mob + '</td>' +
+      '<td>' + comp + '</td>' +
+      '</tr>';
+  });
+  html += '</tbody></table></div>';
+  document.getElementById('kwToolResult').innerHTML = html;
+}
+
+function onKwToolRowClick(kw) {
+  // a) 브리지로 중앙 생성기에 전달
+  window.SoulKitKeywordBridge._emit(kw);
+  // b) 트렌드 패널 자동 조회
+  fetchTrend(kw);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 3. 트렌드 차트 (왼쪽 패널)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const TREND_URL = 'https://n8n.wonflowai.com/webhook/soulkit-shopping-trend';
+let _trendKw = '';
+let _trendUnit = 'date';
+let _trendMonths = 3;
+let _trendData = null;
+
+function setTrendUnit(btn) {
+  document.querySelectorAll('.trend-tog-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  _trendUnit = btn.dataset.unit;
+  _trendMonths = parseInt(btn.dataset.months) || 3;
+  if (_trendKw) fetchTrend(_trendKw);
+}
+
+async function fetchTrend(kw) {
+  _trendKw = kw;
+  const display = document.getElementById('trendKwDisplay');
+  if (display) { display.textContent = kw; display.classList.remove('empty'); }
+  const area = document.getElementById('trendChartArea');
+  if (area) area.innerHTML = '<div class="trend-loading">조회 중...</div>';
+  document.getElementById('trendInfo').textContent = '';
+
+  const unit = _trendUnit === 'year' ? 'month' : _trendUnit;
+  const months = _trendMonths;
+
+  try {
+    const res = await fetch(TREND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyword: kw, timeUnit: unit, monthsBack: months })
+    });
+    const data = await res.json();
+    // 방어적 파싱
+    let trend = [];
+    if (Array.isArray(data)) trend = data;
+    else if (Array.isArray(data?.trend)) trend = data.trend;
+    else if (Array.isArray(data?.data)) trend = data.data;
+    else if (data?.results && Array.isArray(data.results)) trend = data.results;
+
+    if (_trendUnit === 'year') {
+      trend = groupTrendByYear(trend);
+    }
+    _trendData = trend;
+    renderTrendChart(trend, kw);
+  } catch(e) {
+    if (area) area.innerHTML = '<div class="trend-error">조회 실패: ' + e.message + '</div>';
+  }
+}
+
+function groupTrendByYear(trend) {
+  const map = {};
+  trend.forEach(function(d) {
+    const year = String(d.period || '').substring(0, 4);
+    if (!year) return;
+    if (!map[year]) map[year] = { sum: 0, cnt: 0 };
+    map[year].sum += Number(d.ratio) || 0;
+    map[year].cnt += 1;
+  });
+  return Object.keys(map).sort().map(function(y) {
+    return { period: y, ratio: map[y].cnt ? map[y].sum / map[y].cnt : 0 };
+  });
+}
+
+function renderTrendChart(trend, kw) {
+  const area = document.getElementById('trendChartArea');
+  if (!trend || !trend.length) {
+    area.innerHTML = '<div class="trend-empty">데이터가 없습니다</div>';
+    return;
+  }
+
+  const W = 268, H = 160;
+  area.innerHTML = '<div class="trend-canvas-wrap"><canvas id="trendChart" width="' + W + '" height="' + H + '"></canvas></div>';
+
+  const canvas = document.getElementById('trendChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const pad = { top: 14, right: 12, bottom: 32, left: 36 };
+  const cW = W - pad.left - pad.right;
+  const cH = H - pad.top - pad.bottom;
+
+  const ratios = trend.map(function(d){ return Number(d.ratio) || 0; });
+  const maxR = Math.max.apply(null, ratios) || 1;
+  const minR = Math.min.apply(null, ratios);
+  const range = maxR - minR || 1;
+  const n = trend.length;
+
+  function xPos(i) { return pad.left + (n > 1 ? (i / (n - 1)) * cW : cW / 2); }
+  function yPos(v) { return pad.top + cH - ((v - minR) / range) * cH; }
+
+  // background
+  ctx.fillStyle = '#0e1120';
+  ctx.fillRect(0, 0, W, H);
+
+  // grid lines
+  ctx.strokeStyle = '#1a2035';
+  ctx.lineWidth = 1;
+  for (let g = 0; g <= 4; g++) {
+    const y = pad.top + (g / 4) * cH;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cW, y); ctx.stroke();
+  }
+
+  // gradient fill under line
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + cH);
+  grad.addColorStop(0, 'rgba(124,143,240,0.35)');
+  grad.addColorStop(1, 'rgba(124,143,240,0.0)');
+  ctx.beginPath();
+  ctx.moveTo(xPos(0), yPos(ratios[0]));
+  for (let i = 1; i < n; i++) ctx.lineTo(xPos(i), yPos(ratios[i]));
+  ctx.lineTo(xPos(n - 1), pad.top + cH);
+  ctx.lineTo(xPos(0), pad.top + cH);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // line
+  ctx.beginPath();
+  ctx.moveTo(xPos(0), yPos(ratios[0]));
+  for (let i = 1; i < n; i++) ctx.lineTo(xPos(i), yPos(ratios[i]));
+  ctx.strokeStyle = '#7c8ff0';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // dots (only if few points)
+  if (n <= 24) {
+    ratios.forEach(function(v, i) {
+      ctx.beginPath();
+      ctx.arc(xPos(i), yPos(v), 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#7c8ff0';
+      ctx.fill();
+    });
+  }
+
+  // y-axis labels
+  ctx.fillStyle = '#6b6b8a';
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'right';
+  for (let g = 0; g <= 4; g++) {
+    const v = minR + (range * (4 - g) / 4);
+    const y = pad.top + (g / 4) * cH;
+    ctx.fillText(v.toFixed(0), pad.left - 4, y + 3);
+  }
+
+  // x-axis labels (show ~4 ticks)
+  ctx.textAlign = 'center';
+  const step = Math.max(1, Math.ceil(n / 4));
+  for (let i = 0; i < n; i += step) {
+    const label = String(trend[i].period || '');
+    const short = label.length > 7 ? label.substring(2) : label;
+    ctx.fillText(short, xPos(i), H - 8);
+  }
+  // always show last label
+  if (n > 1 && (n - 1) % step !== 0) {
+    const label = String(trend[n - 1].period || '');
+    const short = label.length > 7 ? label.substring(2) : label;
+    ctx.fillText(short, xPos(n - 1), H - 8);
+  }
+
+  // info
+  const info = document.getElementById('trendInfo');
+  if (info) info.textContent = trend.length + '개 데이터 포인트';
+}
 </script>
 </body>
 </html>
