@@ -1591,6 +1591,15 @@ function renderMultiTrendChart(series) {
 // ── postMessage 수신: soulkit-transfer → name-generator ──
 window.addEventListener('message', function(e) {
   if (!e.data || e.data.channel !== 'soulkit-transfer' || e.data.target !== 'name-generator') return;
+  var msgId = e.data.__msgId;
+  window.__processedMsgIds = window.__processedMsgIds || new Set();
+  if (msgId && window.__processedMsgIds.has(msgId)) {
+    // 이미 처리한 메시지면 ack만 다시 보내고 재처리는 안 함
+    if (window.parent) window.parent.postMessage({ channel: 'soulkit-transfer-ack', msgId: msgId }, '*');
+    return;
+  }
+  if (msgId) window.__processedMsgIds.add(msgId);
+
   var payload = e.data.payload || {};
   var title = payload.title;
   var keywords = payload.keywords;
@@ -1604,6 +1613,8 @@ window.addEventListener('message', function(e) {
       if (kw && typeof kw === 'string') addTag(kw);
     });
   }
+
+  if (msgId && window.parent) window.parent.postMessage({ channel: 'soulkit-transfer-ack', msgId: msgId }, '*');
 });
 </script>
 </body>
