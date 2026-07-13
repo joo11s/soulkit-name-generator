@@ -1587,6 +1587,24 @@ function renderMultiTrendChart(series) {
     ctx.fillText(lastShort, xPos(n - 1, n), H - 8);
   }
 }
+
+// ── postMessage 수신: soulkit-transfer → name-generator ──
+window.addEventListener('message', function(e) {
+  if (!e.data || e.data.channel !== 'soulkit-transfer' || e.data.target !== 'name-generator') return;
+  var payload = e.data.payload || {};
+  var title = payload.title;
+  var keywords = payload.keywords;
+  // title이 있으면 하나의 키워드 칩으로 추가
+  if (title && typeof title === 'string') {
+    addTag(title);
+  }
+  // keywords 배열이 있으면 각 항목을 개별 칩으로 추가 (addTag 내부의 50개 제한·중복방지 로직 그대로 적용)
+  if (Array.isArray(keywords)) {
+    keywords.forEach(function(kw) {
+      if (kw && typeof kw === 'string') addTag(kw);
+    });
+  }
+});
 </script>
 </body>
 </html>
