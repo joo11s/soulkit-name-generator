@@ -666,7 +666,7 @@ function renderOutput(d, cpcFilterInfo = null) {
     <div class="result-card" style="margin-top:10px">
       <div class="card-head"><span class="card-head-dot" style="background:#9494ad"></span><span class="card-title">해시태그</span><span class="card-sub">상품명 미사용 + 검색 유입용</span></div>
       <div class="tag-area">${tItems}</div>
-      <div class="tag-foot" style="display:flex;gap:8px"><button class="btn-copy-all" onclick="copyText('${allTags.replace(/'/g,"\\'")}',this)">전체 복사</button><button class="btn-xl" id="xlBtn" onclick="downloadExcel()" disabled title="엑셀 다운로드">↓ 엑셀</button></div>
+      <div class="tag-foot" style="display:flex;justify-content:space-between"><button class="btn-copy-all" onclick="copyText('${allTags.replace(/'/g,"\\'")}',this)">전체 복사</button><button class="btn-xl" id="xlBtn" onclick="downloadExcel()" disabled title="엑셀 다운로드">↓ 엑셀</button></div>
     </div>`;
 }
 
