@@ -404,12 +404,63 @@ async function generate() {
   if (tags.length < 2) { document.getElementById('output').innerHTML = '<p class="err">키워드를 2개 이상 입력해주세요.</p>'; return; }
   const btn = document.getElementById('genBtn');
   btn.disabled = true;
-  document.getElementById('output').innerHTML = '<div class="loading">' + pixLoadHtml('gen') + '<div style="margin-top:10px;font-size:12px;color:#9494ad">키워드 분류 후 상품명 조합 중...</div></div>';
+  document.getElementById('output').innerHTML = '<div class="loading">' + pixLoadHtml('gen') + '<div id="genLoadingLabel" style="margin-top:10px;font-size:12px;color:#9494ad">① 키워드 검색량 분석 중...</div></div>';
   startPixGen();
+
+  // ── Stage 1: CPC 조회 및 키워드 필터링 ──
+  let filteredTags = [...tags];
+  let cpcFilterInfo = null;
+
+  try {
+    const cpcResults = await Promise.all(
+      tags.map(kw =>
+        fetch(CPC_WEBHOOK, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keyword: kw })
+        }).then(r => r.json()).catch(() => ({ keyword: kw, estimate: [] }))
+      )
+    );
+    _cpcData = cpcResults;
+
+    const tier1 = [], tier2 = [], excluded = [];
+    cpcResults.forEach((r, i) => {
+      const kw = r.keyword || tags[i];
+      const est = Array.isArray(r.estimate) ? r.estimate : [];
+      const hasClicks = est.some(e => (e.clicks || 0) > 0);
+      const hasImpressions = est.some(e => (e.impressions || 0) > 0);
+      if (hasClicks) tier1.push(kw);
+      else if (hasImpressions) tier2.push(kw);
+      else excluded.push(kw);
+    });
+
+    let usedTier2 = [];
+    let fallback = false;
+    if (tier1.length >= 2) {
+      filteredTags = [...tier1];
+    } else {
+      const needed = 2 - tier1.length;
+      usedTier2 = tier2.slice(0, needed);
+      filteredTags = [...tier1, ...usedTier2];
+    }
+    if (filteredTags.length < 2) {
+      filteredTags = [...tags];
+      fallback = true;
+    }
+    cpcFilterInfo = { tier1, tier2, excluded, usedTier2, filteredTags, fallback };
+  } catch (e) {
+    filteredTags = [...tags];
+    _cpcData = tags.map(kw => ({ keyword: kw, estimate: [] }));
+    cpcFilterInfo = { tier1: [], tier2: [], excluded: [], usedTier2: [], filteredTags, fallback: true };
+  }
+
+  // ── Stage 2: 상품명 생성 ──
+  const lbl = document.getElementById('genLoadingLabel');
+  if (lbl) lbl.textContent = '② 상품명 생성 중...';
 
   const prompt = `당신은 한국 이커머스 상품명 전문가입니다.
 
-입력 키워드 (무작위): ${tags.join(', ')}
+입력 키워드 (무작위): ${filteredTags.join(', ')}
 
 === 1단계: 키워드 분류 ===
 - brand: 브랜드명 (없으면 빈 배열)
@@ -466,7 +517,7 @@ JSON만 출력:
     let parsed;
     try { parsed = JSON.parse(raw); }
     catch(e) { throw new Error('JSON 파싱 실패. 다시 시도해주세요.'); }
-    renderOutput(parsed);
+    renderOutput(parsed, cpcFilterInfo);
   } catch (e) {
     document.getElementById('output').innerHTML = '<p class="err">오류: ' + e.message + '</p>';
   }
@@ -474,12 +525,32 @@ JSON만 출력:
   btn.disabled = false;
 }
 
-function renderOutput(d) {
+function renderOutput(d, cpcFilterInfo = null) {
   _resultData = d;
-  _cpcData = null;
   const cl = d.classified || {};
   const tm = { brand:'cp-brand', attr:'cp-attr', category:'cp-cat', size:'cp-size', season:'cp-season', hashtag:'cp-tag' };
   const lm = { brand:'브랜드', attr:'속성', category:'카테고리', size:'사이즈', season:'시즌/용도', hashtag:'해시태그용' };
+
+  // CPC 필터링 분석 카드
+  let cpcFilterHtml = '';
+  if (cpcFilterInfo) {
+    const { tier1, tier2, excluded, usedTier2, fallback } = cpcFilterInfo;
+    const t1Html = tier1.length ? tier1.map(kw => `<span class="cp cp-attr">${kw}</span>`).join('') : '<span class="cp cp-tag">없음</span>';
+    const t2Html = tier2.length ? tier2.map(kw => {
+      const used = usedTier2.includes(kw) ? ' <span style="font-size:10px;color:#f5e6c8;margin-left:2px">(보충)</span>' : '';
+      return `<span class="cp cp-season">${kw}${used}</span>`;
+    }).join('') : '<span class="cp cp-tag">없음</span>';
+    const exHtml = excluded.length ? excluded.map(kw => `<span class="cp cp-tag">${kw}</span>`).join('') : '<span class="cp cp-tag">없음</span>';
+    const fallbackRow = fallback ? `<div class="cl-row" style="background:rgba(245,158,11,0.06)"><span style="font-size:12px;color:#f59e0b;padding:2px 0">⚠ 검색량 데이터가 없어 원본 키워드로 생성했습니다</span></div>` : '';
+    cpcFilterHtml = `
+    <div class="classify-card">
+      <div class="classify-head"><span class="classify-dot" style="background:#f59e0b"></span><span class="classify-title">키워드 검색량 분석</span><span class="classify-sub">CPC 기반 필터링</span></div>
+      <div class="cl-row"><span class="cl-label" style="color:#22c55e">1순위</span><div class="cl-tags">${t1Html}</div></div>
+      <div class="cl-row"><span class="cl-label" style="color:#f59e0b">2순위</span><div class="cl-tags">${t2Html}</div></div>
+      <div class="cl-row"><span class="cl-label" style="color:#f87171">제외</span><div class="cl-tags">${exHtml}</div></div>
+      ${fallbackRow}
+    </div>`;
+  }
 
   const clRows = Object.entries(cl).map(([t, ws]) => {
     if (!ws || !ws.length) return '';
@@ -497,7 +568,7 @@ function renderOutput(d) {
   const tItems = (d.tags||[]).map(t => `<span class="tag-item">${t}</span>`).join('');
   const allTags = (d.tags||[]).join(', ');
 
-  document.getElementById('output').innerHTML = `
+  document.getElementById('output').innerHTML = `${cpcFilterHtml}
     <div class="classify-card">
       <div class="classify-head"><span class="classify-dot"></span><span class="classify-title">키워드 분류</span><span class="classify-sub">AI 자동 분류</span></div>
       ${clRows}
@@ -532,20 +603,20 @@ function renderOutput(d) {
         </div>
         <div class="cpc-kw-area">
           <div class="cpc-kw-label">조회할 키워드 (수정 가능)</div>
-          <div class="cpc-kw-grid" id="cpcKwGrid">
-            <div class="cpc-loading">' + pixLoadHtml('cpc') + '</div>
-          </div>
+          <div class="cpc-kw-grid" id="cpcKwGrid"></div>
         </div>
         <div class="cpc-btn-row" style="display:flex;gap:8px">
-          <button class="btn-cpc" id="cpcBtn" onclick="fetchCPC()" disabled style="flex:1">CPC 조회</button>
+          <button class="btn-cpc" id="cpcBtn" onclick="fetchCPC()" disabled style="flex:1">CPC 재조회</button>
           <button class="btn-xl" id="xlBtn" onclick="downloadExcel()" disabled title="엑셀 다운로드">↓ 엑셀</button>
         </div>
         <div id="cpcResult"></div>
       </div>
     </div>`;
 
-  // 상품명 4개로 키워드 추출 (2차 Claude 호출)
-  extractCPCKeywords(d.naver || []);
+  // cpcKwGrid 초기화 및 CPC 결과 즉시 표시
+  const kwsForGrid = cpcFilterInfo ? cpcFilterInfo.filteredTags : [...tags];
+  renderCPCKeywords(kwsForGrid);
+  if (_cpcData) renderCPCResult(_cpcData);
 }
 
 function switchTab(tab) {
@@ -555,27 +626,6 @@ function switchTab(tab) {
   document.getElementById('panel-' + tab).classList.add('active');
 }
 
-// ── 2차 Claude 호출: 상품명 → 광고 키워드 10개 추출 ──
-async function extractCPCKeywords(naverNames) {
-  const inputKeywords = [...tags];
-  if (inputKeywords.length >= 10) {
-    renderCPCKeywords(inputKeywords);
-    return;
-  }
-  const needed = 10 - inputKeywords.length;
-  const prompt = "사용자 입력 키워드: " + inputKeywords.join(', ') + "\n네이버 상품명: " + naverNames.join(' / ') + "\n입력 키워드 제외하고 소비자 검색 키워드 " + needed + "개 추가 생성. 모두 붙여쓰기. JSON만: {\"keywords\":[]}";
-  try {
-    const res = await fetch(PROXY, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:512,messages:[{role:'user',content:prompt}]})});
-    const data = await res.json();
-    const text = (data.content||[]).map(b=>b.text||'').join('');
-    const raw = (text.match(/{[\s\S]*}/)||[])[0]||'';
-    const parsed = JSON.parse(raw);
-    renderCPCKeywords([...inputKeywords,...(parsed.keywords||[])]);
-  } catch(e) {
-    renderCPCKeywords(inputKeywords.length ? inputKeywords : ['']);
-    document.getElementById('cpcBtn').disabled = false;
-  }
-}
 
 function renderCPCKeywords(keywords) {
   const grid = document.getElementById('cpcKwGrid');
