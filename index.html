@@ -292,7 +292,10 @@ table.cpc-tbl td:first-child{color:#e8e8f0;font-weight:600;font-size:13px}
   <!-- ── CENTER: 기존 상품명 생성기 (한 줄도 수정 안 함) ── -->
   <main class="center-col">
 <div class="container">
-  <h1>상품명 생성기</h1>
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:3px">
+    <h1 style="margin-bottom:0">상품명 생성기</h1>
+    <button class="btn-panel-reset" onclick="clearAll()" style="flex-shrink:0;margin-top:2px">초기화</button>
+  </div>
   <p class="sub">키워드 무작위 입력 → 네이버·쿠팡 상품명 + 해시태그 자동 생성</p>
   <div class="kw-box" id="kwBox" onclick="document.getElementById('ghost').focus()">
     <input class="ghost" id="ghost" placeholder="키워드 입력 후 Enter 또는 쉼표 — 붙여넣기도 지원">
@@ -322,7 +325,6 @@ table.cpc-tbl td:first-child{color:#e8e8f0;font-weight:600;font-size:13px}
   </div>
   <div class="btn-row">
     <button class="btn-gen" id="genBtn" onclick="generate()">상품명 생성</button>
-    <button class="btn-clear" onclick="clearAll()">초기화</button>
   </div>
   <div id="output"></div>
 </div>
