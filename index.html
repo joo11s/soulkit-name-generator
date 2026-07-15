@@ -301,6 +301,25 @@ table.cpc-tbl td:first-child{color:#e8e8f0;font-weight:600;font-size:13px}
     <span class="hint">쉼표·줄바꿈 붙여넣기 자동 분리 · 최대 50개</span>
     <span class="count" id="kwCount">0개</span>
   </div>
+  <div class="cpc-section" id="cpcSection" style="margin-top:12px">
+    <div class="cpc-card">
+      <div class="cpc-head">
+        <span class="cpc-dot"></span>
+        <span class="cpc-title">광고 CPC 분석</span>
+        <span class="cpc-sub">입찰가별 예상 노출·클릭·비용</span>
+      </div>
+      <div class="cpc-kw-area">
+        <div class="cpc-kw-label">조회할 키워드 (수정 가능)</div>
+        <div class="cpc-kw-grid" id="cpcKwGrid">
+          <button class="cpc-kw-add" onclick="addCPCKw()">+ 키워드 추가</button>
+        </div>
+      </div>
+      <div class="cpc-btn-row">
+        <button class="btn-cpc" id="cpcBtn" onclick="fetchCPC()">CPC 조회</button>
+      </div>
+      <div id="cpcResult"></div>
+    </div>
+  </div>
   <div class="btn-row">
     <button class="btn-gen" id="genBtn" onclick="generate()">상품명 생성</button>
     <button class="btn-clear" onclick="clearAll()">초기화</button>
@@ -364,6 +383,20 @@ function addTag(v) {
   p.innerHTML = `<span>${v}</span><button onclick="removeTag('${v.replace(/'/g, "\\'")}')">×</button>`;
   kwBox.insertBefore(p, ghost);
   updateCount();
+  addTagToCPCGrid(v);
+}
+function addTagToCPCGrid(v) {
+  const grid = document.getElementById('cpcKwGrid');
+  if (!grid) return;
+  const existing = [...grid.querySelectorAll('.cpc-kw-input')].map(el => el.value.trim());
+  if (existing.includes(v)) return;
+  const addBtn = grid.querySelector('.cpc-kw-add');
+  const idx = Date.now();
+  const row = document.createElement('div');
+  row.className = 'cpc-kw-row';
+  row.id = 'kwrow-' + idx;
+  row.innerHTML = `<span class="cpc-kw-num">+</span><input class="cpc-kw-input" id="cpckw-${idx}" value="${v.replace(/"/g,'&quot;')}" placeholder="키워드 입력"><button class="cpc-kw-del" onclick="removeCPCKw(${idx})">×</button>`;
+  grid.insertBefore(row, addBtn);
 }
 function addMultiple(text) {
   text.split(/[,\n\r]+/).map(s => s.trim()).filter(Boolean).forEach(addTag);
@@ -404,28 +437,49 @@ async function generate() {
   if (tags.length < 2) { document.getElementById('output').innerHTML = '<p class="err">키워드를 2개 이상 입력해주세요.</p>'; return; }
   const btn = document.getElementById('genBtn');
   btn.disabled = true;
-  document.getElementById('output').innerHTML = '<div class="loading">' + pixLoadHtml('gen') + '<div id="genLoadingLabel" style="margin-top:10px;font-size:12px;color:#9494ad">① 키워드 검색량 분석 중...</div></div>';
+
+  // cpcKwGrid 키워드 수집
+  const cpcInputs = document.querySelectorAll('.cpc-kw-input');
+  const cpcGridKws = [...cpcInputs].map(el => el.value.trim().replace(/\s+/g, '')).filter(Boolean);
+  const kwsToUse = cpcGridKws.length > 0 ? cpcGridKws : [...tags];
+
+  // _cpcData가 cpcGridKws와 일치하는지 확인
+  let needsCPCFetch = true;
+  if (_cpcData && _cpcData.length > 0) {
+    const cachedKws = _cpcData.map(r => r.keyword || '').filter(Boolean);
+    if (kwsToUse.length === cachedKws.length && kwsToUse.every(kw => cachedKws.includes(kw))) {
+      needsCPCFetch = false;
+    }
+  }
+
+  const initLabel = needsCPCFetch ? '① 키워드 검색량 확인 중...' : '상품명 생성 중...';
+  document.getElementById('output').innerHTML = '<div class="loading">' + pixLoadHtml('gen') + '<div id="genLoadingLabel" style="margin-top:10px;font-size:12px;color:#9494ad">' + initLabel + '</div></div>';
   startPixGen();
 
   // ── Stage 1: CPC 조회 및 키워드 필터링 ──
-  let filteredTags = [...tags];
+  let filteredTags = [...kwsToUse];
   let cpcFilterInfo = null;
 
   try {
-    const cpcResults = await Promise.all(
-      tags.map(kw =>
-        fetch(CPC_WEBHOOK, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ keyword: kw })
-        }).then(r => r.json()).catch(() => ({ keyword: kw, estimate: [] }))
-      )
-    );
-    _cpcData = cpcResults;
+    let cpcResults;
+    if (needsCPCFetch) {
+      cpcResults = await Promise.all(
+        kwsToUse.map(kw =>
+          fetch(CPC_WEBHOOK, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyword: kw })
+          }).then(r => r.json()).catch(() => ({ keyword: kw, estimate: [] }))
+        )
+      );
+      _cpcData = cpcResults;
+    } else {
+      cpcResults = _cpcData;
+    }
 
     const tier1 = [], tier2 = [], excluded = [];
     cpcResults.forEach((r, i) => {
-      const kw = r.keyword || tags[i];
+      const kw = r.keyword || kwsToUse[i];
       const est = Array.isArray(r.estimate) ? r.estimate : [];
       const hasClicks = est.some(e => (e.clicks || 0) > 0);
       const hasImpressions = est.some(e => (e.impressions || 0) > 0);
@@ -439,19 +493,19 @@ async function generate() {
     // tier1 + tier2 전부 생성 재료로 사용 (excluded만 제외)
     filteredTags = [...tier1, ...tier2];
     if (filteredTags.length < 2) {
-      filteredTags = [...tags];
+      filteredTags = [...kwsToUse];
       fallback = true;
     }
     cpcFilterInfo = { tier1, tier2, excluded, usedTier2, filteredTags, fallback };
   } catch (e) {
-    filteredTags = [...tags];
-    _cpcData = tags.map(kw => ({ keyword: kw, estimate: [] }));
+    filteredTags = [...kwsToUse];
+    _cpcData = kwsToUse.map(kw => ({ keyword: kw, estimate: [] }));
     cpcFilterInfo = { tier1: [], tier2: [], excluded: [], usedTier2: [], filteredTags, fallback: true };
   }
 
   // ── Stage 2: 상품명 생성 ──
   const lbl = document.getElementById('genLoadingLabel');
-  if (lbl) lbl.textContent = '② 상품명 생성 중...';
+  if (lbl) lbl.textContent = needsCPCFetch ? '② 상품명 생성 중...' : '상품명 생성 중...';
 
   const tier1List = cpcFilterInfo ? cpcFilterInfo.tier1 : [];
   const tier2List = cpcFilterInfo ? cpcFilterInfo.tier2 : [];
@@ -473,15 +527,17 @@ async function generate() {
 
 === 2단계: 네이버 스마트스토어 상품명 4개 ===
 반드시 아래 구조 순서를 지켜: [브랜드] + [속성1] + [속성2] + [카테고리] + [사이즈?] + [시즌/용도?]
-- 브랜드 슬롯: 분류된 brand 키워드가 있으면 그것 사용. 없으면 2순위 키워드 중 대표적인 것 1개를 브랜드 자리에 사용.
-  ※ 절대 규칙: 1순위 키워드는 브랜드 자리에 올 수 없음. 브랜드 자리에는 반드시 2순위 키워드만 사용.
+이 순서는 절대 바꿀 수 없음. 어떤 키워드도 지정된 슬롯 외 다른 위치에 올 수 없음.
+- 브랜드 슬롯: 분류된 brand 키워드가 있으면 그것 사용. 없으면 2순위 키워드 중 attr(속성)으로 분류된 것 1개만 사용 가능. attr 2순위도 없으면 브랜드 슬롯 생략.
+  ※ 절대 금지: season으로 분류된 키워드는 브랜드 슬롯에 절대 사용 불가. 1순위 키워드도 브랜드 슬롯에 불가.
 - 속성1, 속성2: 반드시 1순위 키워드 중 attr로 분류된 것에서만 선택 (attr이 1개면 속성1만 사용)
 - 카테고리: 분류된 category 키워드 반드시 포함 (필수, 절대 생략 불가)
 - 사이즈: 분류된 size 키워드 (없으면 생략)
-- 시즌/용도: 1순위 season 키워드가 있으면 그것 우선 사용. 없으면 2순위 키워드(케이스/보관함류 포함)로 채움.
+- 시즌/용도: season으로 분류된 키워드(1순위·2순위 불문)는 반드시 이 슬롯에만 위치. 다른 슬롯으로 이동 절대 금지. season 키워드가 없으면 이 슬롯 생략.
 - 전체 상품명 글자수 30자 이내로 작성 (공백 포함)
 
-예시 (1개만 참고용, 칫솔 카테고리): "부드러운 극세모 칫솔 10개입 여행용칫솔케이스" → 브랜드자리:칫솔케이스(2순위) + 속성1:부드러운(1순위attr) + 속성2:극세모(1순위attr) + 카테고리:칫솔 + 수량:10개입 + 시즌:여행용칫솔케이스
+예시 (1개만 참고용, 칫솔 카테고리, brand 없는 경우): "부드러운 극세모 칫솔 10개입 여행용" → 브랜드슬롯:생략(attr 2순위 없음) + 속성1:부드러운(1순위attr) + 속성2:극세모(1순위attr) + 카테고리:칫솔 + 사이즈:10개입 + 시즌:여행용(season)
+이 예시에서 season(여행용)은 맨 마지막 슬롯에만 위치함. season 키워드를 브랜드 자리나 앞쪽에 두면 절대 안 됨.
 이 예시는 칫솔 카테고리 기준이며, 실제 입력 키워드에 맞게 상품 유형과 구성 키워드를 완전히 새로 구성해야 함. 절대 이 예시를 복사하지 말 것.
 나머지 3개는 attr 키워드 조합과 시즌/용도를 각각 다르게 구성해야 함.
 
@@ -492,15 +548,18 @@ async function generate() {
 - 30자 초과 금지
 
 === 3단계: 쿠팡 상품명 4개 ===
-반드시 아래 구조 순서를 지켜: [브랜드명] + [모델명/시리즈?] + [주요 상품 유형] + [핵심 특징/속성]
-- 브랜드명: 분류된 brand 키워드가 있으면 그것 사용. 없으면 2순위 키워드 중 대표적인 것 1개 사용.
-  ※ 절대 규칙: 1순위 키워드는 브랜드명 자리에 올 수 없음. 브랜드명 자리에는 반드시 2순위 키워드만 사용.
+반드시 아래 구조 순서를 지켜: [브랜드명] + [모델명/시리즈?] + [주요 상품 유형] + [핵심 특징/속성] + [시즌/용도?]
+이 순서는 절대 바꿀 수 없음. season 키워드는 반드시 맨 마지막에만 위치.
+- 브랜드명: 분류된 brand 키워드가 있으면 그것 사용. 없으면 2순위 키워드 중 attr(속성)으로 분류된 것 1개만 사용 가능. attr 2순위도 없으면 브랜드명 슬롯 생략.
+  ※ 절대 금지: season으로 분류된 키워드는 브랜드명 자리에 절대 사용 불가. 1순위 키워드도 브랜드명 자리에 불가.
 - 모델명/시리즈: 상품 고유명·시리즈명 (없으면 생략)
 - 주요 상품 유형: category를 먼저, 그 다음 1순위 키워드 중 핵심 attr 결합
 - 핵심 특징/속성: 1순위 키워드 우선 사용. 용량·수량·포장형태·조리방식 등 구매결정 요소.
+- 시즌/용도: season으로 분류된 키워드는 반드시 이 슬롯(맨 마지막)에만 위치. 없으면 생략.
 - 전체 상품명 글자수 30자 이내로 작성 (공백 포함)
 
-예시 (1개만 참고용, 칫솔 카테고리): "칫솔케이스 극세모칫솔 부드러운 10개입" → 브랜드명:칫솔케이스(2순위) + 주요상품유형:극세모칫솔(1순위attr+category) + 핵심특징:부드러운 10개입(1순위)
+예시 (1개만 참고용, 칫솔 카테고리, brand 없는 경우): "극세모칫솔 부드러운 10개입 여행용" → 브랜드슬롯:생략 + 주요상품유형:극세모칫솔(1순위attr+category) + 핵심특징:부드러운 10개입(1순위) + 시즌:여행용(season)
+이 예시에서 season(여행용)은 맨 마지막에 위치. season을 앞쪽이나 브랜드 자리에 두면 절대 안 됨.
 이 예시는 칫솔 카테고리 기준이며, 실제 입력 키워드에 맞게 완전히 새로 구성해야 함. 절대 이 예시를 복사하지 말 것.
 나머지 3개는 조합과 순서를 각각 다르게 구성해야 함.
 30자 초과 금지.
@@ -526,6 +585,12 @@ JSON만 출력:
     try { parsed = JSON.parse(raw); }
     catch(e) { throw new Error('JSON 파싱 실패. 다시 시도해주세요.'); }
     renderOutput(parsed, cpcFilterInfo);
+    if (needsCPCFetch) {
+      renderCPCResult(_cpcData);
+    } else {
+      const xlBtn = document.getElementById('xlBtn');
+      if (xlBtn) xlBtn.disabled = false;
+    }
   } catch (e) {
     document.getElementById('output').innerHTML = '<p class="err">오류: ' + e.message + '</p>';
   }
@@ -577,23 +642,6 @@ function renderOutput(d, cpcFilterInfo = null) {
   const allTags = (d.tags||[]).join(', ');
 
   document.getElementById('output').innerHTML = `
-    <div class="cpc-section" id="cpcSection">
-      <div class="cpc-card">
-        <div class="cpc-head">
-          <span class="cpc-dot"></span>
-          <span class="cpc-title">광고 CPC 분석</span>
-          <span class="cpc-sub">입찰가별 예상 노출·클릭·비용</span>
-        </div>
-        <div class="cpc-kw-area">
-          <div class="cpc-kw-label">조회할 키워드 (수정 가능)</div>
-          <div class="cpc-kw-grid" id="cpcKwGrid"></div>
-        </div>
-        <div class="cpc-btn-row" style="display:flex;gap:8px">
-          <button class="btn-cpc" id="cpcBtn" onclick="fetchCPC()" disabled style="flex:1">CPC 재조회</button>
-        </div>
-        <div id="cpcResult"></div>
-      </div>
-    </div>
     ${cpcFilterHtml}
     <div class="classify-card">
       <div class="classify-head"><span class="classify-dot"></span><span class="classify-title">키워드 분류</span><span class="classify-sub">AI 자동 분류</span></div>
@@ -620,11 +668,6 @@ function renderOutput(d, cpcFilterInfo = null) {
       <div class="tag-area">${tItems}</div>
       <div class="tag-foot" style="display:flex;gap:8px"><button class="btn-copy-all" onclick="copyText('${allTags.replace(/'/g,"\\'")}',this)">전체 복사</button><button class="btn-xl" id="xlBtn" onclick="downloadExcel()" disabled title="엑셀 다운로드">↓ 엑셀</button></div>
     </div>`;
-
-  // cpcKwGrid 초기화 및 CPC 결과 즉시 표시
-  const kwsForGrid = cpcFilterInfo ? cpcFilterInfo.filteredTags : [...tags];
-  renderCPCKeywords(kwsForGrid);
-  if (_cpcData) renderCPCResult(_cpcData);
 }
 
 function switchTab(tab) {
