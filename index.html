@@ -436,13 +436,8 @@ async function generate() {
 
     let usedTier2 = [];
     let fallback = false;
-    if (tier1.length >= 2) {
-      filteredTags = [...tier1];
-    } else {
-      const needed = 2 - tier1.length;
-      usedTier2 = tier2.slice(0, needed);
-      filteredTags = [...tier1, ...usedTier2];
-    }
+    // tier1 + tier2 전부 생성 재료로 사용 (excluded만 제외)
+    filteredTags = [...tier1, ...tier2];
     if (filteredTags.length < 2) {
       filteredTags = [...tags];
       fallback = true;
@@ -458,47 +453,60 @@ async function generate() {
   const lbl = document.getElementById('genLoadingLabel');
   if (lbl) lbl.textContent = '② 상품명 생성 중...';
 
+  const tier1List = cpcFilterInfo ? cpcFilterInfo.tier1 : [];
+  const tier2List = cpcFilterInfo ? cpcFilterInfo.tier2 : [];
   const prompt = `당신은 한국 이커머스 상품명 전문가입니다.
 
-입력 키워드 (무작위): ${filteredTags.join(', ')}
+입력 키워드:
+- 1순위 키워드 (클릭단가 있음): ${tier1List.length ? tier1List.join(', ') : '없음'}
+- 2순위 키워드 (노출만 있음, 클릭단가 없음): ${tier2List.length ? tier2List.join(', ') : '없음'}
 
 === 1단계: 키워드 분류 ===
+위 1순위 + 2순위 키워드 전체를 아래 카테고리로 분류하세요.
 - brand: 브랜드명 (없으면 빈 배열)
-- attr: 상품의 직접적 속성·특징 (예: 저염식, 건강한, 간단한, 가정식, 대용량, 가성비, 꽈리고추, 계란)
-- category: 상품 자체 카테고리명 (예: 장조림, 밑반찬, 도시락)
-- size: 사이즈·용량·수량 (예: 500g, 대용량, 1kg)
-- season: 시즌·용도·상황 (예: 도시락, 아침반찬, 정기배송, 한달식단, 어린이반찬, 아기반찬)
-- hashtag: 검색 유입용이지만 상품명 구성에 불필요한 것 (예: 반찬추천, 반찬주문, 인터넷반찬가게, 장조림레시피)
-중요: 장조림/밑반찬/도시락반찬은 반드시 category에. 아기반찬/어린이반찬/도시락 같은 용도는 season에. 반찬추천/반찬주문 같은 검색용은 hashtag에.
+- attr: 상품의 직접적 속성·특징 (예: 저염, 가정식, 천연모, 초극세모, 칫솔모)
+- category: 상품 자체 카테고리명 (예: 칫솔, 장조림, 밑반찬)
+- size: 사이즈·용량·수량 (예: 500g, 대용량, 1kg, 10개입)
+- season: 시즌·용도·상황·케이스/보관함류 포함 (예: 도시락, 여행용, 칫솔케이스, 보관함)
+- hashtag: 검색 유입용이지만 상품명 구성에 불필요한 것 (예: 칫솔추천, 칫솔구매, 장조림레시피)
+중요: 상품 자체 유형은 category에. 용도·케이스·보관 용품류는 season에. 순수 검색어는 hashtag에.
 
 === 2단계: 네이버 스마트스토어 상품명 4개 ===
-반드시 아래 구조 순서를 지켜: [brand?] + [attr1] + [attr2] + [category] + [size?] + [season?]
-- brand: 분류된 brand 키워드 (없으면 생략)
-- attr1, attr2: 분류된 attr 키워드 중 2개 선택 (attr이 1개면 attr1만 사용)
-- category: 분류된 category 키워드 반드시 포함 (필수, 절대 생략 불가)
-- size: 분류된 size 키워드 (없으면 생략)
-- season: 분류된 season 키워드 중 1개 (없으면 생략)
+반드시 아래 구조 순서를 지켜: [브랜드] + [속성1] + [속성2] + [카테고리] + [사이즈?] + [시즌/용도?]
+- 브랜드 슬롯: 분류된 brand 키워드가 있으면 그것 사용. 없으면 2순위 키워드 중 대표적인 것 1개를 브랜드 자리에 사용.
+  ※ 절대 규칙: 1순위 키워드는 브랜드 자리에 올 수 없음. 브랜드 자리에는 반드시 2순위 키워드만 사용.
+- 속성1, 속성2: 반드시 1순위 키워드 중 attr로 분류된 것에서만 선택 (attr이 1개면 속성1만 사용)
+- 카테고리: 분류된 category 키워드 반드시 포함 (필수, 절대 생략 불가)
+- 사이즈: 분류된 size 키워드 (없으면 생략)
+- 시즌/용도: 1순위 season 키워드가 있으면 그것 우선 사용. 없으면 2순위 키워드(케이스/보관함류 포함)로 채움.
+- 전체 상품명 글자수 30자 이내로 작성 (공백 포함)
 
-예시 (1개만 참고용): "저염 가정식 계란 꽈리고추 장조림 도시락 밑반찬" → attr1:저염 + attr2:가정식 + category:장조림 + season:도시락
-나머지 3개는 이 예시를 절대 복사하지 말고, attr 키워드 조합과 season을 각각 다르게 구성해야 함.
+예시 (1개만 참고용, 칫솔 카테고리): "부드러운 극세모 칫솔 10개입 여행용칫솔케이스" → 브랜드자리:칫솔케이스(2순위) + 속성1:부드러운(1순위attr) + 속성2:극세모(1순위attr) + 카테고리:칫솔 + 수량:10개입 + 시즌:여행용칫솔케이스
+이 예시는 칫솔 카테고리 기준이며, 실제 입력 키워드에 맞게 상품 유형과 구성 키워드를 완전히 새로 구성해야 함. 절대 이 예시를 복사하지 말 것.
+나머지 3개는 attr 키워드 조합과 시즌/용도를 각각 다르게 구성해야 함.
 
 금지사항:
 - 청정, 최고, 최상, 프리미엄, 특가, 할인, 배송조건
 - 중복 의미 단어
-- 4개 중 동일한 attr 조합 또는 동일한 season 반복 금지
+- 4개 중 동일한 attr 조합 또는 동일한 시즌/용도 반복 금지
+- 30자 초과 금지
 
 === 3단계: 쿠팡 상품명 4개 ===
 반드시 아래 구조 순서를 지켜: [브랜드명] + [모델명/시리즈?] + [주요 상품 유형] + [핵심 특징/속성]
-- 브랜드명: 분류된 brand 키워드 또는 대표 원산지/생산지 (반드시 포함, 없으면 가장 대표적인 attr 사용)
+- 브랜드명: 분류된 brand 키워드가 있으면 그것 사용. 없으면 2순위 키워드 중 대표적인 것 1개 사용.
+  ※ 절대 규칙: 1순위 키워드는 브랜드명 자리에 올 수 없음. 브랜드명 자리에는 반드시 2순위 키워드만 사용.
 - 모델명/시리즈: 상품 고유명·시리즈명 (없으면 생략)
-- 주요 상품 유형: category를 먼저, 그 다음 핵심 attr 결합 (예: 꽈리고추계란장조림, 저염장조림)
-- 핵심 특징/속성: 용량·수량·포장형태·조리방식 등 구매결정 요소 (원산지·중량·수량 직접 포함 가능)
+- 주요 상품 유형: category를 먼저, 그 다음 1순위 키워드 중 핵심 attr 결합
+- 핵심 특징/속성: 1순위 키워드 우선 사용. 용량·수량·포장형태·조리방식 등 구매결정 요소.
+- 전체 상품명 글자수 30자 이내로 작성 (공백 포함)
 
-예시 (1개만 참고용): "가정식 꽈리고추계란장조림 저염 도시락반찬 500g" → 브랜드명:가정식 + 주요상품유형:꽈리고추계란장조림 + 핵심특징:저염 도시락반찬 500g
-나머지 3개는 이 예시를 절대 복사하지 말고, 조합과 순서를 각각 다르게 구성해야 함.
+예시 (1개만 참고용, 칫솔 카테고리): "칫솔케이스 극세모칫솔 부드러운 10개입" → 브랜드명:칫솔케이스(2순위) + 주요상품유형:극세모칫솔(1순위attr+category) + 핵심특징:부드러운 10개입(1순위)
+이 예시는 칫솔 카테고리 기준이며, 실제 입력 키워드에 맞게 완전히 새로 구성해야 함. 절대 이 예시를 복사하지 말 것.
+나머지 3개는 조합과 순서를 각각 다르게 구성해야 함.
+30자 초과 금지.
 
 === 4단계: 해시태그 ===
-- hashtag 분류 키워드 + 상품명에서 빠진 키워드
+- hashtag 분류 키워드 + 상품명에서 빠진 키워드 (1순위+2순위 중에서만, 제외 키워드는 해시태그에도 포함하지 않음)
 - 10~15개, #없이 한글 단어만
 
 JSON만 출력:
@@ -563,8 +571,8 @@ function renderOutput(d, cpcFilterInfo = null) {
     </div>`;
   }).join('');
 
-  const nRows = (d.naver||[]).map((n,i) => `<div class="name-row"><span class="name-num">${i+1}</span><span class="name-text">${n}</span><span class="name-len${n.length>50?' warn':''}">${n.length}자</span><button class="copy-btn" onclick="copyText('${n.replace(/'/g,"\\'")}',this)">복사</button></div>`).join('');
-  const cRows = (d.coupang||[]).map((n,i) => `<div class="name-row"><span class="name-num">${i+1}</span><span class="name-text">${n}</span><span class="name-len${n.length>50?' warn':''}">${n.length}자</span><button class="copy-btn" onclick="copyText('${n.replace(/'/g,"\\'")}',this)">복사</button></div>`).join('');
+  const nRows = (d.naver||[]).map((n,i) => `<div class="name-row"><span class="name-num">${i+1}</span><span class="name-text">${n}</span><span class="name-len${n.length>30?' warn':''}">${n.length}자</span><button class="copy-btn" onclick="copyText('${n.replace(/'/g,"\\'")}',this)">복사</button></div>`).join('');
+  const cRows = (d.coupang||[]).map((n,i) => `<div class="name-row"><span class="name-num">${i+1}</span><span class="name-text">${n}</span><span class="name-len${n.length>30?' warn':''}">${n.length}자</span><button class="copy-btn" onclick="copyText('${n.replace(/'/g,"\\'")}',this)">복사</button></div>`).join('');
   const tItems = (d.tags||[]).map(t => `<span class="tag-item">${t}</span>`).join('');
   const allTags = (d.tags||[]).join(', ');
 
@@ -582,7 +590,6 @@ function renderOutput(d, cpcFilterInfo = null) {
         </div>
         <div class="cpc-btn-row" style="display:flex;gap:8px">
           <button class="btn-cpc" id="cpcBtn" onclick="fetchCPC()" disabled style="flex:1">CPC 재조회</button>
-          <button class="btn-xl" id="xlBtn" onclick="downloadExcel()" disabled title="엑셀 다운로드">↓ 엑셀</button>
         </div>
         <div id="cpcResult"></div>
       </div>
@@ -611,7 +618,7 @@ function renderOutput(d, cpcFilterInfo = null) {
     <div class="result-card" style="margin-top:10px">
       <div class="card-head"><span class="card-head-dot" style="background:#9494ad"></span><span class="card-title">해시태그</span><span class="card-sub">상품명 미사용 + 검색 유입용</span></div>
       <div class="tag-area">${tItems}</div>
-      <div class="tag-foot"><button class="btn-copy-all" onclick="copyText('${allTags.replace(/'/g,"\\'")}',this)">전체 복사</button></div>
+      <div class="tag-foot" style="display:flex;gap:8px"><button class="btn-copy-all" onclick="copyText('${allTags.replace(/'/g,"\\'")}',this)">전체 복사</button><button class="btn-xl" id="xlBtn" onclick="downloadExcel()" disabled title="엑셀 다운로드">↓ 엑셀</button></div>
     </div>`;
 
   // cpcKwGrid 초기화 및 CPC 결과 즉시 표시
