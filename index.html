@@ -568,7 +568,26 @@ function renderOutput(d, cpcFilterInfo = null) {
   const tItems = (d.tags||[]).map(t => `<span class="tag-item">${t}</span>`).join('');
   const allTags = (d.tags||[]).join(', ');
 
-  document.getElementById('output').innerHTML = `${cpcFilterHtml}
+  document.getElementById('output').innerHTML = `
+    <div class="cpc-section" id="cpcSection">
+      <div class="cpc-card">
+        <div class="cpc-head">
+          <span class="cpc-dot"></span>
+          <span class="cpc-title">광고 CPC 분석</span>
+          <span class="cpc-sub">입찰가별 예상 노출·클릭·비용</span>
+        </div>
+        <div class="cpc-kw-area">
+          <div class="cpc-kw-label">조회할 키워드 (수정 가능)</div>
+          <div class="cpc-kw-grid" id="cpcKwGrid"></div>
+        </div>
+        <div class="cpc-btn-row" style="display:flex;gap:8px">
+          <button class="btn-cpc" id="cpcBtn" onclick="fetchCPC()" disabled style="flex:1">CPC 재조회</button>
+          <button class="btn-xl" id="xlBtn" onclick="downloadExcel()" disabled title="엑셀 다운로드">↓ 엑셀</button>
+        </div>
+        <div id="cpcResult"></div>
+      </div>
+    </div>
+    ${cpcFilterHtml}
     <div class="classify-card">
       <div class="classify-head"><span class="classify-dot"></span><span class="classify-title">키워드 분류</span><span class="classify-sub">AI 자동 분류</span></div>
       ${clRows}
@@ -593,24 +612,6 @@ function renderOutput(d, cpcFilterInfo = null) {
       <div class="card-head"><span class="card-head-dot" style="background:#9494ad"></span><span class="card-title">해시태그</span><span class="card-sub">상품명 미사용 + 검색 유입용</span></div>
       <div class="tag-area">${tItems}</div>
       <div class="tag-foot"><button class="btn-copy-all" onclick="copyText('${allTags.replace(/'/g,"\\'")}',this)">전체 복사</button></div>
-    </div>
-    <div class="cpc-section" id="cpcSection">
-      <div class="cpc-card">
-        <div class="cpc-head">
-          <span class="cpc-dot"></span>
-          <span class="cpc-title">광고 CPC 분석</span>
-          <span class="cpc-sub">입찰가별 예상 노출·클릭·비용</span>
-        </div>
-        <div class="cpc-kw-area">
-          <div class="cpc-kw-label">조회할 키워드 (수정 가능)</div>
-          <div class="cpc-kw-grid" id="cpcKwGrid"></div>
-        </div>
-        <div class="cpc-btn-row" style="display:flex;gap:8px">
-          <button class="btn-cpc" id="cpcBtn" onclick="fetchCPC()" disabled style="flex:1">CPC 재조회</button>
-          <button class="btn-xl" id="xlBtn" onclick="downloadExcel()" disabled title="엑셀 다운로드">↓ 엑셀</button>
-        </div>
-        <div id="cpcResult"></div>
-      </div>
     </div>`;
 
   // cpcKwGrid 초기화 및 CPC 결과 즉시 표시
