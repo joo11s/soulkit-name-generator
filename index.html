@@ -617,6 +617,7 @@ JSON만 출력:
 
 function renderOutput(d, cpcFilterInfo = null) {
   _resultData = d;
+  window._tierData = cpcFilterInfo || null;
   const cl = d.classified || {};
   const tm = { brand:'cp-brand', attr_p1:'cp-attr', attr_p2:'cp-attr', category_p1:'cp-cat', category_p2:'cp-cat', size:'cp-size', season_p1:'cp-season', season_p2:'cp-season', hashtag:'cp-tag' };
   const lm = { brand:'브랜드', attr_p1:'속성(1순위)', attr_p2:'속성(2순위)', category_p1:'카테고리(1순위)', category_p2:'카테고리(2순위)', size:'사이즈', season_p1:'시즌(1순위)', season_p2:'시즌(2순위)', hashtag:'해시태그용' };
@@ -864,6 +865,24 @@ function downloadExcel() {
     sc(ri,0,"키워드", st("e5e7eb",{bold:true,center:true})); mg(ri,0,ri,8); ri++;
     sc(ri,0, tags.join(", "), st("f9fafb",{wrap:true})); mg(ri,0,ri,8); ri++;
     ri++;
+  }
+
+  // ══════════════════════
+  // 섹션0: 키워드 검색량 분석
+  // ══════════════════════
+  if (window._tierData) {
+    try {
+      const td = window._tierData;
+      secH(ri, '키워드 검색량 분석', 'b45309', 8); ri++;
+      sc(ri,0,'1순위', st('fde68a',{bold:true,center:true}));
+      sc(ri,1, td.tier1.length ? td.tier1.join(', ') : '', st('fef9c3',{wrap:true})); mg(ri,1,ri,8); ri++;
+      sc(ri,0,'2순위', st('fbbf24',{bold:true,center:true}));
+      const t2Vals = td.tier2.map(kw => td.usedTier2.includes(kw) ? kw + ' (보충)' : kw);
+      sc(ri,1, t2Vals.length ? t2Vals.join(', ') : '', st('fff7ed',{wrap:true})); mg(ri,1,ri,8); ri++;
+      sc(ri,0,'제외', st('fca5a5',{bold:true,center:true}));
+      sc(ri,1, td.excluded.length ? td.excluded.join(', ') : '', st('fef2f2',{wrap:true})); mg(ri,1,ri,8); ri++;
+      ri++;
+    } catch(e) { /* _tierData 이상 시 섹션 건너뜀 */ }
   }
 
   // ══════════════════════
