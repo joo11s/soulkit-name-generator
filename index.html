@@ -799,8 +799,9 @@ function renderCPCResult(results) {
   });
 
   html += `</tbody></table></div>
-    <div style="padding:10px 16px;font-size:11px;color:#6b6b8a;border-top:1px solid #2a2a4a">
-      🟢 저비용 &nbsp; 🟡 중간 &nbsp; 🔴 고비용 &nbsp;·&nbsp; 모바일 기준 · 예상값이므로 참고용으로만 사용
+    <div style="padding:10px 16px;font-size:11px;color:#6b6b8a;border-top:1px solid #2a2a4a;display:flex;justify-content:space-between;align-items:center">
+      <span>🟢 저비용 &nbsp; 🟡 중간 &nbsp; 🔴 고비용 &nbsp;·&nbsp; 모바일 기준 · 예상값이므로 참고용으로만 사용</span>
+      <button class="btn-xl" id="cpcXlBtn" onclick="downloadExcel()" title="엑셀 다운로드">↓ 엑셀</button>
     </div>`;
 
   document.getElementById('cpcResult').innerHTML = html;
@@ -809,11 +810,11 @@ function renderCPCResult(results) {
 
 // ── 엑셀 다운로드 (xlsx-js-style) ──
 function downloadExcel() {
-  if (!_resultData || typeof XLSX === 'undefined') {
+  if ((!_resultData && !_cpcData) || typeof XLSX === 'undefined') {
     alert('잠시 후 다시 시도해주세요.');
     return;
   }
-  const d = _resultData;
+  const d = _resultData || {};
   const cl = d.classified || {};
   const bids = [50,70,100,150,200,300,500,700,1000];
   const lm = {brand:'브랜드',attr_p1:'속성(1순위)',attr_p2:'속성(2순위)',category_p1:'카테고리(1순위)',category_p2:'카테고리(2순위)',size:'사이즈',season_p1:'시즌(1순위)',season_p2:'시즌(2순위)',hashtag:'해시태그용'};
